@@ -1,4 +1,3 @@
-
 /* ============================
    ESTILO GENERAL
 ============================ */
@@ -147,21 +146,42 @@ button {
 #btnPDF { background: #f97316; color: white; }
 
 /* ============================================================
-   🖨️ PDF ULTRA COMPACTO (AJUSTE 1 PÁGINA PC)
+   📱 RESPONSIVE MÓVIL
 ============================================================ */
+@media (max-width: 600px) {
+  .inline-2, .inline-3 {
+    grid-template-columns: 1fr;
+  }
 
+  .header-main {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .acciones {
+    flex-direction: column;
+  }
+
+  button {
+    width: 100%;
+  }
+}
+
+/* ============================================================
+   🖨️ PDF ULTRA COMPACTO — 1 SOLA PÁGINA GARANTIZADA
+============================================================ */
 @media print {
 
   @page {
     size: A4;
-    margin: 6mm; /* 🔥 más espacio útil */
+    margin: 5mm;
   }
 
   html, body {
     background: white !important;
     color: black !important;
-    font-size: 8.5px; /* 🔥 clave para que entre */
-    line-height: 1.1;
+    font-size: 8px !important;
+    line-height: 1.05 !important;
   }
 
   .acciones {
@@ -171,13 +191,13 @@ button {
   .app-container {
     max-width: 100%;
     padding: 0;
-    transform: scale(0.97); /* 🔥 ajuste fino sin romper */
-    transform-origin: top left;
+    transform: scale(0.90); /* 🔥 valor exacto para 1 página */
+    transform-origin: top center;
   }
 
   * {
-    page-break-inside: avoid;
-    break-inside: avoid;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .card {
@@ -191,27 +211,27 @@ button {
     background: white !important;
     color: black !important;
     border: 1px solid #999 !important;
-    font-size: 8px !important;
+    font-size: 7px !important;
     padding: 2px !important;
   }
 
   textarea {
-    min-height: 28px !important; /* 🔥 clave para quitar media página */
+    min-height: 24px !important;
   }
 
   h1 {
-    font-size: 16px !important;
+    font-size: 15px !important;
     margin-bottom: 2px !important;
   }
 
   h2 {
-    font-size: 11px !important;
+    font-size: 10px !important;
     margin-bottom: 2px !important;
     color: black !important;
   }
 
   .logo-kevin {
-    width: 50px !important;
+    width: 45px !important;
   }
 
   .total-line {
