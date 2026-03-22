@@ -283,7 +283,7 @@ button {
     margin: 0;
     transform: scale(0.78); /* 🔥 Tamaño perfecto */
     transform-origin: top center;
-    height:100vh;
+    height:80vh
   }
 
 .card, .totales, .section-grid {
