@@ -244,7 +244,7 @@ button {
 }
 
 /* ============================
-   PDF 1 SOLA PÁGINA — OPTIMIZADO
+   PDF 1 SOLA PÁGINA — OPTIMIZADO Y LEGIBLE
 ============================ */
 @media print {
 
@@ -256,11 +256,13 @@ button {
   html, body {
     background: white !important;
     color: black !important;
-    font-size: 6.5px !important;
-    line-height: 1.05 !important;
+    font-size: 7.5px !important; /* 🔥 Más grande */
+    line-height: 1.12 !important; /* 🔥 Más legible */
     margin: 0 !important;
     padding: 0 !important;
     width: 100%;
+    height: auto !important;
+    overflow: hidden !important;
   }
 
   .acciones,
@@ -276,33 +278,45 @@ button {
   .app-container {
     max-width: 100%;
     padding: 0;
-    transform: scale(0.68); /* 🔥 Ajuste definitivo para 1 sola página */
+    transform: scale(0.78); /* 🔥 Más grande pero seguro */
     transform-origin: top center;
   }
 
-  * { page-break-inside: avoid !important; }
+  * {
+    page-break-inside: avoid !important;
+  }
 
   .card {
     background: white !important;
     border: 1px solid #ccc !important;
-    padding: 2px !important;
-    margin-bottom: 2px !important;
+    padding: 4px !important; /* 🔥 Más espacio interno */
+    margin-bottom: 3px !important;
   }
 
   input, select, textarea {
     background: white !important;
     color: black !important;
     border: 1px solid #999 !important;
-    font-size: 6px !important;
-    padding: 2px !important;
+    font-size: 7px !important; /* 🔥 Más grande */
+    padding: 3px !important;
   }
 
-  textarea { min-height: 18px !important; }
+  textarea {
+    min-height: 22px !important;
+  }
 
-  h1 { font-size: 13px !important; }
-  h2 { font-size: 8px !important; color: black !important; }
+  h1 {
+    font-size: 15px !important;
+  }
 
-  .logo-kevin { width: 38px !important; }
+  h2 {
+    font-size: 10px !important;
+    color: black !important;
+  }
+
+  .logo-kevin {
+    width: 42px !important;
+  }
 
   .total-line {
     color: black !important;
