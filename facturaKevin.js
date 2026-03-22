@@ -1,4 +1,4 @@
-/* TOASTS */
+/* TOASTS ORIGINALES */
 function showToast(message, type = "blue") {
   const toast = document.getElementById("toast");
   toast.textContent = message;
@@ -16,39 +16,11 @@ function showConfirmToast(message, callback) {
 function hideConfirmToast() { document.getElementById("toastConfirm").classList.remove("show"); }
 
 document.getElementById("toastBtnYes").addEventListener("click", () => { if (confirmAction) confirmAction(); hideConfirmToast(); });
-document.getElementById("toastBtnNo").addEventListener("click", () => { hideConfirmToast(); showToast("Cancelado", "blue"); });
+document.getElementById("toastBtnNo").addEventListener("click", () => { hideConfirmToast(); showToast("Operación cancelada", "blue"); });
 
-/* UTILIDADES */
+/* CÁLCULOS */
 function formatoEuro(v) { return (Number(v) || 0).toFixed(2).replace(".", ",") + " €"; }
 function obtenerNumero(id) { return Number(document.getElementById(id).value) || 0; }
-
-/* IMPRESIÓN */
-function prepararImpresion() {
-  const area = document.getElementById("print-area");
-  const original = document.querySelector(".app-container");
-  
-  area.innerHTML = ""; 
-  area.innerHTML = original.innerHTML;
-  
-  const inputsOrig = original.querySelectorAll("input, select, textarea");
-  const inputsClon = area.querySelectorAll("input, select, textarea");
-  
-  inputsOrig.forEach((inp, i) => {
-    if (inp.type === "checkbox") inputsClon[i].checked = inp.checked;
-    else inputsClon[i].value = inp.value;
-  });
-
-  window.print();
-  
-  setTimeout(() => { area.innerHTML = ""; }, 500);
-}
-
-/* LÓGICA FACTURACIÓN */
-function generarNumeroFactura() {
-  const año = new Date().getFullYear();
-  let contador = Number(localStorage.getItem("contadorFacturasKevin") || 1);
-  document.getElementById("numeroFactura").value = `${contador}-${año}`;
-}
 
 function recalcularTotales() {
   const cantidad = obtenerNumero("cantidad");
@@ -60,18 +32,33 @@ function recalcularTotales() {
   if (!document.getElementById("desplazamientoIncluido").checked) base += desplazamiento;
   if (!document.getElementById("alojamientoIncluido").checked) base += alojamiento;
 
-  const ivaRetImporte = base * obtenerNumero("ivaRetenido") / 100;
-  const ivaImporte = base * obtenerNumero("ivaAplicado") / 100;
-  const total = base - ivaRetImporte + ivaImporte;
+  const ret = base * obtenerNumero("ivaRetenido") / 100;
+  const iva = base * obtenerNumero("ivaAplicado") / 100;
 
   document.getElementById("subtotal").textContent = formatoEuro(base);
-  document.getElementById("ivaRetenidoImporte").textContent = formatoEuro(ivaRetImporte);
-  document.getElementById("ivaImporte").textContent = formatoEuro(ivaImporte);
-  document.getElementById("total").textContent = formatoEuro(total);
+  document.getElementById("ivaRetenidoImporte").textContent = formatoEuro(ret);
+  document.getElementById("ivaImporte").textContent = formatoEuro(iva);
+  document.getElementById("total").textContent = formatoEuro(base - ret + iva);
 }
 
-/* CUENTAS */
-function cargarCuentasGuardadas() {
+/* GENERACIÓN DE PDF (MANTENIDA PARA 1 PÁGINA) */
+function prepararImpresion() {
+  const area = document.getElementById("print-area");
+  const original = document.querySelector(".app-container");
+  area.innerHTML = "";
+  area.innerHTML = original.innerHTML;
+  const inputsOrig = original.querySelectorAll("input, select, textarea");
+  const inputsClon = area.querySelectorAll("input, select, textarea");
+  inputsOrig.forEach((inp, i) => {
+    if (inp.type === "checkbox") inputsClon[i].checked = inp.checked;
+    else inputsClon[i].value = inp.value;
+  });
+  window.print();
+  setTimeout(() => { area.innerHTML = ""; }, 500);
+}
+
+/* CUENTAS BANCARIAS CON LIMPIEZA */
+function cargarCuentas() {
   const select = document.getElementById("cuentasGuardadas");
   const cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]");
   select.innerHTML = cuentas.length ? "" : '<option value="">Sin cuentas</option>';
@@ -86,26 +73,30 @@ function cargarCuentasGuardadas() {
 
 function guardarCuenta() {
   const iban = document.getElementById("cuentaActual").value.trim();
-  if (!iban) return showToast("IBAN vacío", "red");
+  if (!iban) return showToast("IBAN requerido", "red");
   let cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]");
   if (!cuentas.includes(iban)) cuentas.push(iban);
   localStorage.setItem("cuentasKevinDJ", JSON.stringify(cuentas));
-  cargarCuentasGuardadas(); showToast("Cuenta guardada");
+  cargarCuentas(); showToast("Cuenta guardada", "blue");
 }
 
 function eliminarCuenta() {
   const iban = document.getElementById("cuentasGuardadas").value;
   if (!iban) return;
-  showConfirmToast("¿Eliminar cuenta?", () => {
-    let cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]");
-    cuentas = cuentas.filter(c => c !== iban);
+  showConfirmToast("¿Eliminar esta cuenta?", () => {
+    let cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]").filter(c => c !== iban);
     localStorage.setItem("cuentasKevinDJ", JSON.stringify(cuentas));
-    cargarCuentasGuardadas(); showToast("Eliminada", "red");
+    
+    // CORRECCIÓN: Limpia el campo IBAN tras eliminar
+    document.getElementById("cuentaActual").value = ""; 
+    
+    cargarCuentas(); 
+    showToast("Cuenta eliminada", "red");
   });
 }
 
-/* CLIENTES */
-function cargarClientesGuardados() {
+/* CLIENTES CON LIMPIEZA TOTAL */
+function cargarClientes() {
   const select = document.getElementById("clientesGuardados");
   const clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]");
   select.innerHTML = clientes.length ? "" : '<option value="">Sin clientes</option>';
@@ -118,26 +109,22 @@ function cargarClientesGuardados() {
 
 function guardarCliente() {
   const nombre = document.getElementById("clienteNombre").value.trim();
-  if (!nombre) return showToast("Nombre obligatorio", "red");
+  if (!nombre) return showToast("Nombre requerido", "red");
   const cliente = {
-    nombre,
-    email: document.getElementById("clienteEmail").value,
-    direccion: document.getElementById("clienteDireccion").value,
-    cp: document.getElementById("clienteCP").value,
-    localidad: document.getElementById("clienteLocalidad").value,
-    provincia: document.getElementById("clienteProvincia").value,
-    telefono: document.getElementById("clienteTelefono").value,
-    tipoDoc: document.getElementById("clienteTipoDoc").value,
+    nombre, email: document.getElementById("clienteEmail").value,
+    direccion: document.getElementById("clienteDireccion").value, cp: document.getElementById("clienteCP").value,
+    localidad: document.getElementById("clienteLocalidad").value, provincia: document.getElementById("clienteProvincia").value,
+    telefono: document.getElementById("clienteTelefono").value, tipoDoc: document.getElementById("clienteTipoDoc").value,
     doc: document.getElementById("clienteDoc").value
   };
   let clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]");
   const idx = clientes.findIndex(c => c.nombre === nombre);
   if (idx > -1) clientes[idx] = cliente; else clientes.push(cliente);
   localStorage.setItem("clientesKevinDJ", JSON.stringify(clientes));
-  cargarClientesGuardados(); showToast("Cliente guardado");
+  cargarClientes(); showToast("Cliente guardado", "blue");
 }
 
-function rellenarClienteSeleccionado() {
+function rellenarCliente() {
   const nombre = document.getElementById("clientesGuardados").value;
   const clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]");
   const c = clientes.find(x => x.nombre === nombre);
@@ -156,20 +143,26 @@ function rellenarClienteSeleccionado() {
 function eliminarCliente() {
   const nombre = document.getElementById("clientesGuardados").value;
   if (!nombre) return;
-  showConfirmToast("¿Eliminar cliente?", () => {
-    let clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]");
-    clientes = clientes.filter(c => c.nombre !== nombre);
+  showConfirmToast("¿Eliminar este cliente?", () => {
+    let clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]").filter(c => c.nombre !== nombre);
     localStorage.setItem("clientesKevinDJ", JSON.stringify(clientes));
-    cargarClientesGuardados(); showToast("Eliminado", "red");
+    
+    // CORRECCIÓN: Limpia todos los campos tras eliminar
+    const campos = ["Nombre", "Email", "Direccion", "CP", "Localidad", "Provincia", "Telefono", "Doc"];
+    campos.forEach(c => document.getElementById("cliente" + c).value = "");
+    document.getElementById("clienteTipoDoc").value = "DNI";
+
+    cargarClientes(); 
+    showToast("Cliente eliminado", "red");
   });
 }
 
-/* EVENTOS */
+/* INICIALIZACIÓN */
 window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("fechaFactura").value = new Date().toISOString().slice(0, 10);
-  generarNumeroFactura();
-  cargarCuentasGuardadas();
-  cargarClientesGuardados();
+  cargarCuentas(); cargarClientes();
+  const contador = localStorage.getItem("contadorFacturasKevin") || 1;
+  document.getElementById("numeroFactura").value = `${contador}-${new Date().getFullYear()}`;
   
   document.getElementById("btnRecalcular").onclick = recalcularTotales;
   document.getElementById("btnPDF").onclick = prepararImpresion;
@@ -177,10 +170,8 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnEliminarCuenta").onclick = eliminarCuenta;
   document.getElementById("btnGuardarCliente").onclick = guardarCliente;
   document.getElementById("btnEliminarCliente").onclick = eliminarCliente;
-  document.getElementById("clientesGuardados").onchange = rellenarClienteSeleccionado;
+  document.getElementById("clientesGuardados").onchange = rellenarCliente;
 
-  ["cantidad", "importe", "ivaRetenido", "ivaAplicado", "desplazamientoImporte", "alojamientoImporte", "desplazamientoIncluido", "alojamientoIncluido"].forEach(id => {
-    document.getElementById(id).addEventListener("input", recalcularTotales);
-  });
+  document.querySelectorAll("input, select").forEach(el => el.addEventListener("input", recalcularTotales));
   recalcularTotales();
 });
