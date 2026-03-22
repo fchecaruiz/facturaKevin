@@ -283,8 +283,9 @@ button {
     margin: 0;
     transform: scale(0.78); /* 🔥 Tamaño perfecto */
     transform-origin: top center;
-    height:80vh;
+    height:95px;
   }
+
 
 .card, .totales, .section-grid {
     page-break-inside: avoid !important;
