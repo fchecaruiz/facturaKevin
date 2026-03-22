@@ -192,6 +192,11 @@ button {
     font-size: 10px;
   }
 
+  html, body {
+  width: 210mm;
+  height: 297mm;
+}
+
   .acciones {
     display: none !important;
   }
@@ -204,7 +209,7 @@ button {
   .app-container {
     max-width: 100%;
     padding: 0;
-    transform: scale(0.99); /* 🔥 ESCALA DEFINITIVA */
+    zoom: 0.95; /* 🔥 ESCALA DEFINITIVA */
     transform-origin: top center;
   }
 
