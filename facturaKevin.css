@@ -45,13 +45,8 @@ html, body {
   transform: translate(-50%, -50%) scale(1);
 }
 
-.toast-blue {
-  background: #3b82f6;
-}
-
-.toast-red {
-  background: #ef4444;
-}
+.toast-blue { background: #3b82f6; }
+.toast-red { background: #ef4444; }
 
 /* ============================
    TOAST DE CONFIRMACIÓN
@@ -97,15 +92,8 @@ html, body {
   font-size: 0.9rem;
 }
 
-#toastBtnYes {
-  background: #ef4444;
-  color: white;
-}
-
-#toastBtnNo {
-  background: #3b82f6;
-  color: white;
-}
+#toastBtnYes { background: #ef4444; color: white; }
+#toastBtnNo { background: #3b82f6; color: white; }
 
 /* ============================
    CABECERA
@@ -168,9 +156,7 @@ input, select, textarea {
   box-sizing: border-box;
 }
 
-textarea {
-  min-height: 40px;
-}
+textarea { min-height: 40px; }
 
 /* ============================
    GRIDS
@@ -231,55 +217,30 @@ button {
 #btnRecalcular { background: #22c55e; color: white; }
 #btnPDF { background: #f97316; color: white; }
 
-#btnGuardarCliente {
-  background: #facc15;
-  color: #000;
-  margin-bottom: 6px;
-}
+#btnGuardarCliente { background: #facc15; color: #000; margin-bottom: 6px; }
+#btnEliminarCliente { background: #ef4444; color: white; margin-top: 4px; }
 
-#btnEliminarCliente {
-  background: #ef4444;
-  color: white;
-  margin-top: 4px;
-}
-
-#btnGuardarCuenta {
-  background: #3b82f6;
-  color: white;
-  margin-top: 6px;
-}
-
-#btnEliminarCuenta {
-  background: #ef4444;
-  color: white;
-  margin-top: 6px;
-}
+#btnGuardarCuenta { background: #3b82f6; color: white; margin-top: 6px; }
+#btnEliminarCuenta { background: #ef4444; color: white; margin-top: 6px; }
 
 /* ============================
    RESPONSIVE MÓVIL
 ============================ */
 @media (max-width: 600px) {
 
-  html, body {
-    font-size: 14px;
+  html, body { font-size: 14px; }
+
+  .inline-2, .inline-3 { grid-template-columns: 1fr; }
+
+  .header-main { flex-direction: column; gap: 6px; }
+
+  button { width: 100%; }
+
+  .acciones button {
+    margin-bottom: 10px;
   }
 
-  .inline-2, .inline-3 {
-    grid-template-columns: 1fr;
-  }
-
-  .header-main {
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  button {
-    width: 100%;
-  }
-
-  .toast-confirm {
-    width: 90%;
-  }
+  .toast-confirm { width: 90%; }
 }
 
 /* ============================
@@ -295,7 +256,7 @@ button {
   html, body {
     background: white !important;
     color: black !important;
-    font-size: 7px !important;
+    font-size: 6.5px !important;
     line-height: 1.05 !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -315,18 +276,16 @@ button {
   .app-container {
     max-width: 100%;
     padding: 0;
-    transform: scale(0.74); /* 🔥 Ajuste profesional para 1 página */
+    transform: scale(0.68); /* 🔥 Ajuste definitivo para 1 sola página */
     transform-origin: top center;
   }
 
-  * {
-    page-break-inside: avoid !important;
-  }
+  * { page-break-inside: avoid !important; }
 
   .card {
     background: white !important;
     border: 1px solid #ccc !important;
-    padding: 3px !important;
+    padding: 2px !important;
     margin-bottom: 2px !important;
   }
 
@@ -338,22 +297,12 @@ button {
     padding: 2px !important;
   }
 
-  textarea {
-    min-height: 20px !important;
-  }
+  textarea { min-height: 18px !important; }
 
-  h1 {
-    font-size: 14px !important;
-  }
+  h1 { font-size: 13px !important; }
+  h2 { font-size: 8px !important; color: black !important; }
 
-  h2 {
-    font-size: 9px !important;
-    color: black !important;
-  }
-
-  .logo-kevin {
-    width: 40px !important;
-  }
+  .logo-kevin { width: 38px !important; }
 
   .total-line {
     color: black !important;
