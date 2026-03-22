@@ -20,9 +20,7 @@ html, body {
   box-sizing: border-box;
 }
 
-/* ============================
-   TOAST NORMAL
-============================ */
+/* TOASTS */
 .toast {
   position: fixed;
   top: 50%;
@@ -35,22 +33,14 @@ html, body {
   font-size: 1rem;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: 0.3s ease;
   z-index: 9999;
   text-align: center;
 }
-
-.toast.show {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-}
-
+.toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 .toast-blue { background: #3b82f6; }
 .toast-red { background: #ef4444; }
 
-/* ============================
-   TOAST DE CONFIRMACIÓN
-============================ */
 .toast-confirm {
   position: fixed;
   top: 50%;
@@ -68,174 +58,50 @@ html, body {
   z-index: 10000;
   border: 2px solid #ef4444;
 }
-
-.toast-confirm.show {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-  pointer-events: all;
-}
-
-.toast-buttons {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 12px;
-}
-
-.toast-buttons button {
-  flex: 1;
-  margin: 0 4px;
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
+.toast-confirm.show { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: all; }
+.toast-buttons { display: flex; justify-content: space-between; margin-top: 12px; }
+.toast-buttons button { flex: 1; margin: 0 4px; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
 #toastBtnYes { background: #ef4444; color: white; }
 #toastBtnNo { background: #3b82f6; color: white; }
 
-/* ============================
-   CABECERA
-============================ */
-.header-main {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 6px;
-}
+/* CABECERA */
+.header-main { display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 6px; }
+.header-main h1 { margin: 0; font-size: 24px; color: #02f132; font-weight: 900; }
+.logo-kevin { width: 75px; border-radius: 12px; }
 
-.header-main h1 {
-  margin: 0;
-  font-size: 24px;
-  color: #02f132;
-  font-weight: 900;
-}
+/* TARJETAS Y CAMPOS */
+.card { background: #1e293b; padding: 8px; border-radius: 8px; margin-bottom: 6px; border: 1px solid #334155; }
+h2 { margin: 0 0 4px 0; color: #22c55e; font-size: 0.95rem; }
+label { display: flex; flex-direction: column; font-size: 0.85rem; gap: 2px; }
+input, select, textarea { width: 100%; padding: 6px; border-radius: 5px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 0.85rem; box-sizing: border-box; }
 
-.logo-kevin {
-  width: 75px;
-  border-radius: 12px;
-}
+.inline-2 { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; margin-bottom: 6px; }
+.inline-3 { display: grid; gap: 6px; grid-template-columns: 1fr 1fr 1fr; margin-bottom: 6px; }
+.check-label { display: flex; align-items: center; gap: 5px; flex-direction: row !important; }
 
-/* ============================
-   TARJETAS
-============================ */
-.card {
-  background: #1e293b;
-  padding: 8px;
-  border-radius: 8px;
-  margin-bottom: 6px;
-  border: 1px solid #334155;
-}
+.totales div { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.85rem; }
+.total-line { font-weight: bold; border-top: 1px solid #f97316; margin-top: 4px; padding-top: 4px; color: #f97316; }
 
-h2 {
-  margin: 0 0 4px 0;
-  color: #22c55e;
-  font-size: 0.95rem;
-}
-
-/* ============================
-   CAMPOS
-============================ */
-label {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.85rem;
-  gap: 2px;
-}
-
-input, select, textarea {
-  width: 100%;
-  padding: 6px;
-  border-radius: 5px;
-  border: 1px solid #475569;
-  background: #0f172a;
-  color: white;
-  font-size: 0.85rem;
-  box-sizing: border-box;
-}
-
-textarea { min-height: 40px; }
-
-/* ============================
-   GRIDS
-============================ */
-.inline-2, .inline-3 {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.inline-2 { grid-template-columns: 1fr 1fr; }
-.inline-3 { grid-template-columns: 1fr 1fr 1fr; }
-
-/* ============================
-   CHECKBOXES
-============================ */
-.check-label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.check-label input {
-  width: 14px;
-  height: 14px;
-}
-
-/* ============================
-   TOTALES
-============================ */
-.totales div {
-  display: flex;
-  justify-content: space-between;
-  padding: 2px 0;
-  font-size: 0.85rem;
-}
-
-.total-line {
-  font-weight: bold;
-  border-top: 1px solid #f97316;
-  margin-top: 4px;
-  padding-top: 4px;
-  color: #f97316;
-}
-
-/* ============================
-   BOTONES
-============================ */
-button {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 0.85rem;
-}
-
+button { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
 #btnRecalcular { background: #22c55e; color: white; }
 #btnPDF { background: #f97316; color: white; }
-
-#btnGuardarCliente { background: #facc15; color: #000; margin-bottom: 6px; }
-#btnEliminarCliente { background: #ef4444; color: white; margin-top: 4px; }
-
-#btnGuardarCuenta { background: #3b82f6; color: white; margin-top: 6px; }
-#btnEliminarCuenta { background: #ef4444; color: white; margin-top: 6px; }
+.acciones { display: flex; gap: 10px; margin-top: 10px; }
 
 /* ============================
-   PDF 1 SOLA PÁGINA — OPTIMIZADO
+   OPTIMIZACIÓN PDF (PRINT)
 ============================ */
 @media print {
   @page {
     size: A4;
-    margin: 5mm; /* Margen mínimo para aprovechar espacio */
+    margin: 0;
   }
 
-  /* Ocultar elementos de interfaz e interactivos */
-  body {
+  html, body {
     background: white !important;
-    color: black !important;
+    height: 100vh !important;
+    overflow: hidden !important; 
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   body * {
@@ -246,57 +112,41 @@ button {
     visibility: visible !important;
   }
 
-  /* Forzar que el contenedor ocupe el ancho y no desborde */
   #print-area {
     position: absolute;
     left: 0;
     top: 0;
     width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    padding: 10mm 12mm !important;
+    box-sizing: border-box;
     background: white !important;
-    transform: scale(0.98); /* Escala ligera para asegurar el encuadre */
-    transform-origin: top left;
+    color: black !important;
+    transform: scale(1.05); /* Escala ligeramente mayor para mejor lectura */
+    transform-origin: top center;
   }
 
-  #print-area .app-container {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 0 !important;
-  }
-
-  /* Estilos visuales para PDF (Texto negro sobre blanco) */
-  #print-area .card {
+  .card {
     background: white !important;
     border: 1px solid #000 !important;
-    padding: 4px !important;
     margin-bottom: 4px !important;
+    padding: 6px !important;
     page-break-inside: avoid !important;
   }
 
-  #print-area input,
-  #print-area select,
-  #print-area textarea {
+  input, select, textarea {
     background: white !important;
     color: black !important;
-    border: 0.5px solid #000 !important;
-    font-size: 10px !important;
-    padding: 2px !important;
-    appearance: none; /* Quita flechas de select para limpieza */
+    border: 1px solid #999 !important;
+    font-size: 11px !important;
+    padding: 4px !important;
   }
 
-  #print-area h1, #print-area h2, #print-area label {
-    color: black !important;
-  }
+  h1, h2, label, span, p { color: black !important; }
+  .total-line { border-top: 2px solid black !important; color: black !important; }
 
-  #print-area .total-line {
-    color: black !important;
-    border-top: 2px solid black !important;
-  }
-
-  /* Ocultar botones dentro del área de impresión si los hay */
-  #print-area button {
+  button, .acciones, #btnGuardarCliente, #btnEliminarCliente, 
+  #btnGuardarCuenta, #btnEliminarCuenta, .toast, .toast-confirm,
+  #clientesGuardados, #cuentasGuardadas {
     display: none !important;
   }
 }
