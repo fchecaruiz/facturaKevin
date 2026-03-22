@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="facturaKevin.css" />
 </head>
 <body>
+
+  <!-- TOAST NORMAL -->
+  <div id="toast" class="toast"></div>
+
+  <!-- TOAST DE CONFIRMACIÓN -->
+  <div id="toastConfirm" class="toast-confirm">
+    <p id="toastConfirmText"></p>
+    <div class="toast-buttons">
+      <button id="toastBtnYes">SI</button>
+      <button id="toastBtnNo">NO</button>
+    </div>
+  </div>
+
   <div class="app-container">
 
     <!-- CABECERA -->
@@ -102,7 +115,7 @@
         </label>
       </div>
 
-      <!-- 🔥 BOTONES CLIENTE -->
+      <!-- BOTONES CLIENTE -->
       <button id="btnGuardarCliente" type="button">Guardar cliente</button>
 
       <label>Clientes guardados

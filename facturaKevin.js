@@ -1,3 +1,54 @@
+/* ============================================================
+   TOAST NORMAL (AZUL / ROJO)
+============================================================ */
+function showToast(message, type = "blue") {
+  const toast = document.getElementById("toast");
+
+  toast.textContent = message;
+
+  toast.className = "toast show " + (type === "red" ? "toast-red" : "toast-blue");
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2500);
+}
+
+/* ============================================================
+   TOAST DE CONFIRMACIÓN CON BOTONES
+============================================================ */
+let confirmAction = null;
+
+function showConfirmToast(message, callback) {
+  const box = document.getElementById("toastConfirm");
+  const text = document.getElementById("toastConfirmText");
+
+  text.textContent = message;
+  confirmAction = callback;
+
+  box.classList.add("show");
+}
+
+function hideConfirmToast() {
+  const box = document.getElementById("toastConfirm");
+  box.classList.remove("show");
+  confirmAction = null;
+}
+
+/* Botón SI */
+document.getElementById("toastBtnYes").addEventListener("click", () => {
+  if (confirmAction) confirmAction();
+  hideConfirmToast();
+});
+
+/* Botón NO */
+document.getElementById("toastBtnNo").addEventListener("click", () => {
+  hideConfirmToast();
+  showToast("Operación cancelada", "blue");
+});
+
+/* ============================================================
+   FORMATO Y UTILIDADES
+============================================================ */
 function formatoEuro(v) {
   return (Number(v) || 0).toFixed(2).replace(".", ",") + " €";
 }
@@ -6,6 +57,9 @@ function obtenerNumero(id) {
   return Number(document.getElementById(id).value) || 0;
 }
 
+/* ============================================================
+   INICIO DE LA APP
+============================================================ */
 window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("fechaFactura").value =
     new Date().toISOString().slice(0, 10);
@@ -14,7 +68,7 @@ window.addEventListener("DOMContentLoaded", () => {
   cargarCuentasGuardadas();
   cargarClientesGuardados();
 
-  limpiarCamposFactura(); // 🔥 LIMPIAR CAMPOS AL INICIAR
+  limpiarCamposFactura();
 
   document.getElementById("btnRecalcular").onclick = recalcularTotales;
   document.getElementById("btnPDF").onclick = () => window.print();
@@ -32,7 +86,8 @@ window.addEventListener("DOMContentLoaded", () => {
     "desplazamientoIncluido", "alojamientoIncluido",
     "ivaRetenido", "ivaAplicado"
   ].forEach(id => {
-    document.getElementById(id).addEventListener("input", recalcularTotales);
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", recalcularTotales);
   });
 
   document.getElementById("desplazamientoIncluido").addEventListener("change", () => {
@@ -133,12 +188,15 @@ function recalcularTotales() {
 ============================================================ */
 function cargarCuentasGuardadas() {
   const select = document.getElementById("cuentasGuardadas");
+  if (!select) return;
+
   select.innerHTML = "";
 
   const cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]");
 
   if (cuentas.length === 0) {
     select.innerHTML = `<option value="">Sin cuentas guardadas</option>`;
+    document.getElementById("cuentaActual").value = "";
     return;
   }
 
@@ -159,7 +217,7 @@ function cargarCuentasGuardadas() {
 
 function guardarCuenta() {
   const iban = document.getElementById("cuentaActual").value.trim();
-  if (!iban) return alert("Introduce un IBAN válido.");
+  if (!iban) return showToast("Introduce un IBAN válido", "red");
 
   let cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]");
 
@@ -167,25 +225,27 @@ function guardarCuenta() {
 
   localStorage.setItem("cuentasKevinDJ", JSON.stringify(cuentas));
   cargarCuentasGuardadas();
-  alert("Cuenta guardada correctamente.");
+
+  showToast("Cuenta guardada correctamente", "blue");
 }
 
 function eliminarCuenta() {
   const select = document.getElementById("cuentasGuardadas");
+  if (!select) return;
+
   const iban = select.value;
+  if (!iban) return showToast("No hay ninguna cuenta seleccionada", "red");
 
-  if (!iban) return alert("No hay ninguna cuenta seleccionada.");
+  showConfirmToast("¿Eliminar esta cuenta bancaria?", () => {
+    let cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]");
+    cuentas = cuentas.filter(c => c !== iban);
 
-  let cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]");
+    localStorage.setItem("cuentasKevinDJ", JSON.stringify(cuentas));
+    cargarCuentasGuardadas();
+    document.getElementById("cuentaActual").value = "";
 
-  cuentas = cuentas.filter(c => c !== iban);
-
-  localStorage.setItem("cuentasKevinDJ", JSON.stringify(cuentas));
-  cargarCuentasGuardadas();
-
-  document.getElementById("cuentaActual").value = "";
-
-  alert("Cuenta eliminada correctamente.");
+    showToast("Cuenta eliminada", "red");
+  });
 }
 
 /* ============================================================
@@ -204,7 +264,7 @@ function guardarCliente() {
     doc: document.getElementById("clienteDoc").value.trim()
   };
 
-  if (!cliente.nombre) return alert("El cliente debe tener un nombre.");
+  if (!cliente.nombre) return showToast("El cliente debe tener un nombre", "red");
 
   let clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]");
 
@@ -218,7 +278,8 @@ function guardarCliente() {
 
   localStorage.setItem("clientesKevinDJ", JSON.stringify(clientes));
   cargarClientesGuardados();
-  alert("Cliente guardado correctamente.");
+
+  showToast("Cliente guardado correctamente", "blue");
 }
 
 function cargarClientesGuardados() {
@@ -243,7 +304,10 @@ function cargarClientesGuardados() {
 }
 
 function rellenarClienteSeleccionado() {
-  const nombre = document.getElementById("clientesGuardados").value;
+  const select = document.getElementById("clientesGuardados");
+  if (!select) return;
+
+  const nombre = select.value;
   const clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]");
 
   const c = clientes.find(x => x.nombre === nombre);
@@ -262,18 +326,19 @@ function rellenarClienteSeleccionado() {
 
 function eliminarCliente() {
   const select = document.getElementById("clientesGuardados");
+  if (!select) return;
+
   const nombre = select.value;
+  if (!nombre) return showToast("No hay ningún cliente seleccionado", "red");
 
-  if (!nombre) return alert("No hay ningún cliente seleccionado.");
+  showConfirmToast("¿Eliminar este cliente?", () => {
+    let clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]");
+    clientes = clientes.filter(c => c.nombre !== nombre);
 
-  let clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]");
+    localStorage.setItem("clientesKevinDJ", JSON.stringify(clientes));
+    cargarClientesGuardados();
+    limpiarCamposFactura();
 
-  clientes = clientes.filter(c => c.nombre !== nombre);
-
-  localStorage.setItem("clientesKevinDJ", JSON.stringify(clientes));
-  cargarClientesGuardados();
-
-  limpiarCamposFactura();
-
-  alert("Cliente eliminado correctamente.");
+    showToast("Cliente eliminado", "red");
+  });
 }
