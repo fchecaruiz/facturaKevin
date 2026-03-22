@@ -229,8 +229,10 @@ button {
 
   /* 🔥 OBSERVACIONES Y CUENTA REDUCIDOS */
   textarea {
-    min-height: 28px !important;
+    min-height: 30px !important;
+    max-height: 80px;
   }
+  
 
   /* 🔥 GRIDS MÁS COMPACTOS */
   .inline-2, .inline-3 {
