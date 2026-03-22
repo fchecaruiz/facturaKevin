@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- 🔥 NECESARIO PARA MÓVIL -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Factura Kevin Checa</title>
   <link rel="stylesheet" href="facturaKevin.css" />
 </head>
@@ -101,6 +101,16 @@
           <input id="clienteDoc" type="text" />
         </label>
       </div>
+
+      <!-- 🔥 BOTONES CLIENTE -->
+      <button id="btnGuardarCliente" type="button">Guardar cliente</button>
+
+      <label>Clientes guardados
+        <select id="clientesGuardados"></select>
+      </label>
+
+      <button id="btnEliminarCliente" type="button">Eliminar cliente</button>
+
     </section>
 
     <!-- SESIÓN -->
@@ -189,6 +199,9 @@
         </label>
 
         <button id="btnGuardarCuenta" type="button">Guardar / actualizar cuenta</button>
+
+        <button id="btnEliminarCuenta" type="button">Eliminar cuenta</button>
+
       </div>
     </section>
 

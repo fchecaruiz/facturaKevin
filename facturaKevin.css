@@ -145,6 +145,34 @@ button {
 #btnRecalcular { background: #22c55e; color: white; }
 #btnPDF { background: #f97316; color: white; }
 
+/* BOTÓN GUARDAR CLIENTE Y CUENTA */
+#btnGuardarCliente {
+  background: #facc15;
+  color: #000;
+  margin-bottom: 6px;
+}
+
+/* BOTÓN GUARDAR / ACTUALIZAR CUENTA */
+#btnGuardarCuenta {
+  background: #3b82f6; /* azul (puedes cambiarlo) */
+  color: white;
+  margin-top: 6px;
+}
+
+/* BOTÓN ELIMINAR CLIENTE */
+#btnEliminarCliente {
+  background: #ef4444; /* rojo */
+  color: white;
+  margin-top: 4px;
+}
+
+/* BOTÓN ELIMINAR CUENTA */
+#btnEliminarCuenta {
+  background: #ef4444; /* rojo */
+  color: white;
+  margin-top: 6px;
+}
+
 /* ============================================================
    📱 RESPONSIVE MÓVIL
 ============================================================ */
@@ -191,7 +219,7 @@ button {
   .app-container {
     max-width: 100%;
     padding: 0;
-    transform: scale(0.90); /* 🔥 valor exacto para 1 página */
+    transform: scale(0.90);
     transform-origin: top center;
   }
 
