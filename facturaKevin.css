@@ -286,11 +286,9 @@ button {
     height: auto !important;
   }
 
-  * {
+.card, .totales, .section-grid {
     page-break-inside: avoid !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
+}
 
   .card {
     background: white !important;
