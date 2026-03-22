@@ -283,7 +283,7 @@ button {
     margin: 0;
     transform: scale(0.78); /* 🔥 Tamaño perfecto */
     transform-origin: top center;
-    height: 100%; /* 🔥 Evita desbordes */
+    height: auto !important;
   }
 
   * {
