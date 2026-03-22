@@ -224,110 +224,79 @@ button {
 #btnEliminarCuenta { background: #ef4444; color: white; margin-top: 6px; }
 
 /* ============================
-   RESPONSIVE MÓVIL
-============================ */
-@media (max-width: 600px) {
-
-  html, body { font-size: 14px; }
-
-  .inline-2, .inline-3 { grid-template-columns: 1fr; }
-
-  .header-main { flex-direction: column; gap: 6px; }
-
-  button { width: 100%; }
-
-  .acciones button {
-    margin-bottom: 10px;
-  }
-
-  .toast-confirm { width: 90%; }
-}
-
-/* ============================
-   PDF 1 SOLA PÁGINA — DEFINITIVO
+   PDF 1 SOLA PÁGINA — OPTIMIZADO
 ============================ */
 @media print {
-
   @page {
     size: A4;
-    margin: 0;
+    margin: 5mm; /* Margen mínimo para aprovechar espacio */
   }
 
-  html, body {
+  /* Ocultar elementos de interfaz e interactivos */
+  body {
     background: white !important;
     color: black !important;
-    font-size: 7.5px !important;
-    line-height: 1.12 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #print-area, #print-area * {
+    visibility: visible !important;
+  }
+
+  /* Forzar que el contenedor ocupe el ancho y no desborde */
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: 100%;
-    height: auto !important;
-    overflow: hidden !important; /* Evita la segunda página */
+    background: white !important;
+    transform: scale(0.98); /* Escala ligera para asegurar el encuadre */
+    transform-origin: top left;
   }
 
-  /* Ocultar elementos no imprimibles */
-  .acciones,
-  #toast,
-  #toastConfirm,
-  #btnGuardarCliente,
-  #btnEliminarCliente,
-  #btnGuardarCuenta,
-  #btnEliminarCuenta {
-    display: none !important;
+  #print-area .app-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
   }
 
-  /* Contenedor principal */
-  .app-container {
-    max-width: 100%;
-    padding: 0;
-    margin: 0;
-    transform: scale(0.70); /* Tamaño perfecto */
-    transform-origin: top center;
-    max-height: 1120px !important; /* Evita desbordes */
-    overflow: hidden !important;   /* Elimina página en blanco */
-  }
-
-  /* Evitar saltos internos solo en bloques grandes */
-  .card,
-  .totales,
-  .section-grid {
+  /* Estilos visuales para PDF (Texto negro sobre blanco) */
+  #print-area .card {
+    background: white !important;
+    border: 1px solid #000 !important;
+    padding: 4px !important;
+    margin-bottom: 4px !important;
     page-break-inside: avoid !important;
   }
 
-  .card {
-    background: white !important;
-    border: 1px solid #ccc !important;
-    padding: 4px !important;
-    margin-bottom: 0 !important; /* Evita empujes al final */
-  }
-
-  input, select, textarea {
+  #print-area input,
+  #print-area select,
+  #print-area textarea {
     background: white !important;
     color: black !important;
-    border: 1px solid #999 !important;
-    font-size: 7px !important;
-    padding: 3px !important;
-  }
-
-  textarea {
-    min-height: 22px !important;
-  }
-
-  h1 {
-    font-size: 15px !important;
-  }
-
-  h2 {
+    border: 0.5px solid #000 !important;
     font-size: 10px !important;
+    padding: 2px !important;
+    appearance: none; /* Quita flechas de select para limpieza */
+  }
+
+  #print-area h1, #print-area h2, #print-area label {
     color: black !important;
   }
 
-  .logo-kevin {
-    width: 42px !important;
+  #print-area .total-line {
+    color: black !important;
+    border-top: 2px solid black !important;
   }
 
-  .total-line {
-    color: black !important;
-    border-color: black !important;
+  /* Ocultar botones dentro del área de impresión si los hay */
+  #print-area button {
+    display: none !important;
   }
 }
