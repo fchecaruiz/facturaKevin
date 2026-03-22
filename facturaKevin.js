@@ -15,8 +15,8 @@ function showConfirmToast(message, callback) {
 }
 function hideConfirmToast() { document.getElementById("toastConfirm").classList.remove("show"); }
 
-document.getElementById("toastBtnYes").onclick = () => { if (confirmAction) confirmAction(); hideConfirmToast(); };
-document.getElementById("toastBtnNo").onclick = () => { hideConfirmToast(); showToast("Cancelado", "blue"); };
+document.getElementById("toastBtnYes").addEventListener("click", () => { if (confirmAction) confirmAction(); hideConfirmToast(); });
+document.getElementById("toastBtnNo").addEventListener("click", () => { hideConfirmToast(); showToast("Cancelado", "blue"); });
 
 /* UTILIDADES */
 function formatoEuro(v) { return (Number(v) || 0).toFixed(2).replace(".", ",") + " €"; }
@@ -28,7 +28,7 @@ function prepararImpresion() {
   const original = document.querySelector(".app-container");
   
   area.innerHTML = ""; 
-  area.innerHTML = original.innerHTML; 
+  area.innerHTML = original.innerHTML;
   
   const inputsOrig = original.querySelectorAll("input, select, textarea");
   const inputsClon = area.querySelectorAll("input, select, textarea");
@@ -43,7 +43,7 @@ function prepararImpresion() {
   setTimeout(() => { area.innerHTML = ""; }, 500);
 }
 
-/* LÓGICA DE LA APP */
+/* LÓGICA FACTURACIÓN */
 function generarNumeroFactura() {
   const año = new Date().getFullYear();
   let contador = Number(localStorage.getItem("contadorFacturasKevin") || 1);
@@ -164,7 +164,7 @@ function eliminarCliente() {
   });
 }
 
-/* INICIO */
+/* EVENTOS */
 window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("fechaFactura").value = new Date().toISOString().slice(0, 10);
   generarNumeroFactura();
