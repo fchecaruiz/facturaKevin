@@ -244,7 +244,7 @@ button {
 }
 
 /* ============================
-   PDF 1 SOLA PÁGINA — OPTIMIZADO Y LEGIBLE
+   PDF 1 SOLA PÁGINA — DEFINITIVO
 ============================ */
 @media print {
 
@@ -256,15 +256,16 @@ button {
   html, body {
     background: white !important;
     color: black !important;
-    font-size: 7.5px !important; /* 🔥 Más grande */
-    line-height: 1.12 !important; /* 🔥 Más legible */
+    font-size: 7.5px !important;
+    line-height: 1.12 !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100%;
-    height: auto !important;
-    overflow: hidden !important;
+    height: 100%;
+    overflow: hidden !important; /* 🔥 Evita la segunda página */
   }
 
+  /* Ocultar elementos no imprimibles */
   .acciones,
   #toast,
   #toastConfirm,
@@ -275,21 +276,26 @@ button {
     display: none !important;
   }
 
+  /* Contenedor principal */
   .app-container {
     max-width: 100%;
     padding: 0;
-    transform: scale(0.78); /* 🔥 Más grande pero seguro */
+    margin: 0;
+    transform: scale(0.78); /* 🔥 Tamaño perfecto */
     transform-origin: top center;
+    height: 100%; /* 🔥 Evita desbordes */
   }
 
   * {
     page-break-inside: avoid !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .card {
     background: white !important;
     border: 1px solid #ccc !important;
-    padding: 4px !important; /* 🔥 Más espacio interno */
+    padding: 4px !important;
     margin-bottom: 3px !important;
   }
 
@@ -297,7 +303,7 @@ button {
     background: white !important;
     color: black !important;
     border: 1px solid #999 !important;
-    font-size: 7px !important; /* 🔥 Más grande */
+    font-size: 7px !important;
     padding: 3px !important;
   }
 
