@@ -158,7 +158,7 @@ button { padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-
   font-size: 1.1rem;
 }
 
-/* PDF */
+/* --- SECCIÓN DE IMPRESIÓN (PDF UNA SOLA PÁGINA) --- */
 #print-area { display: none; }
 
 @media print {
@@ -216,4 +216,31 @@ button { padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-
     color: #22c55e !important;
     font-size: 12px;
   }
+}
+
+/* --- RESPONSIVE PARA MÓVIL (MANTENIENDO COLUMNAS) --- */
+@media (max-width: 600px) {
+  /* Forzamos a que se mantengan las columnas del PC */
+  .inline-2 { 
+    display: grid !important; 
+    grid-template-columns: 1fr 1fr !important; 
+    gap: 8px; 
+  }
+  .inline-3 { 
+    display: grid !important; 
+    grid-template-columns: 1fr 1fr 1fr !important; 
+    gap: 5px; 
+  }
+
+  /* Reducimos tamaños para que quepa todo en el ancho del móvil */
+  .app-container { padding: 8px; }
+  .card { padding: 10px; margin-bottom: 10px; }
+  h1 { font-size: 20px !important; }
+  h2 { font-size: 0.85rem; }
+  label { font-size: 0.75rem; }
+  input, select, textarea { padding: 6px; font-size: 0.8rem; }
+  
+  /* Los botones de acción sí los ponemos uno bajo otro para que sean fáciles de pulsar */
+  .acciones { flex-direction: column; gap: 10px; }
+  .acciones button { padding: 12px; font-size: 0.9rem; }
 }
