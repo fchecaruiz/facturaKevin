@@ -1,132 +1,170 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <title>Factura Kevin Checa</title>
-  <link rel="stylesheet" href="facturaKevin.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generador de Facturas - Kevin Checa</title>
+  <link rel="stylesheet" href="facturaKevin.css">
 </head>
 <body>
 
-  <div id="toast" class="toast"></div>
+  <div class="app-container">
+    <!-- CABECERA -->
+    <header class="header-main">
+      <img src="logo-kevin.png" alt="Logo Kevin" class="logo-kevin">
+      <h1>KEVIN CHECA</h1>
+    </header>
 
+    <!-- DATOS DEL EMISOR -->
+    <section class="card">
+      <h2>MIS DATOS (EMISOR)</h2>
+      <div class="inline-2">
+        <label>Nombre / Razón Social <input type="text" id="emisorNombre" value="KEVIN CHECA"></label>
+        <label>NIF <input type="text" id="emisorNif" value="12345678Z"></label>
+      </div>
+      <div class="inline-3">
+        <label>Dirección <input type="text" id="emisorDireccion" value="Calle Ejemplo 123"></label>
+        <label>Localidad <input type="text" id="emisorLocalidad" value="Madrid"></label>
+        <label>Provincia <input type="text" id="emisorProvincia" value="Madrid"></label>
+      </div>
+      <div class="inline-3">
+        <label>C.P. <input type="text" id="emisorCP" value="28001"></label>
+        <label>Email <input type="email" id="emisorEmail" value="kevin@ejemplo.com"></label>
+        <label>Fecha Factura <input type="date" id="fechaFactura"></label>
+      </div>
+      <label>Nº Factura <input type="text" id="numeroFactura" placeholder="Ej: 1-2024"></label>
+    </section>
+
+    <!-- DATOS DEL CLIENTE -->
+    <section class="card">
+      <h2>DATOS DEL CLIENTE</h2>
+      <label>Seleccionar Cliente Guardado
+        <select id="clientesGuardados"></select>
+      </label>
+      <div class="inline-2">
+        <label>Nombre / Razón Social <input type="text" id="clienteNombre"></label>
+        <label>Email <input type="email" id="clienteEmail"></label>
+      </div>
+      <div class="inline-3">
+        <label>Dirección <input type="text" id="clienteDireccion"></label>
+        <label>C.P. <input type="text" id="clienteCP"></label>
+        <label>Localidad <input type="text" id="clienteLocalidad"></label>
+      </div>
+      <div class="inline-2">
+        <label>Provincia <input type="text" id="clienteProvincia"></label>
+        <label>Teléfono <input type="text" id="clienteTelefono"></label>
+      </div>
+      <div class="inline-2">
+        <label>Tipo Doc.
+          <select id="clienteTipoDoc">
+            <option value="DNI">DNI</option>
+            <option value="NIE">NIE</option>
+            <option value="CIF">CIF</option>
+          </select>
+        </label>
+        <label>Nº Documento <input type="text" id="clienteDoc"></label>
+      </div>
+      <div class="inline-2">
+        <button id="btnGuardarCliente">Guardar/Actualizar Cliente</button>
+        <button id="btnEliminarCliente">Eliminar Cliente Seleccionado</button>
+      </div>
+    </section>
+
+    <!-- DETALLES DEL SERVICIO -->
+    <section class="card">
+      <h2>DETALLES DEL SERVICIO</h2>
+      <label>Descripción de la Sesión / Servicio
+        <textarea id="descripcionSesion" rows="2"></textarea>
+      </label>
+      <div class="inline-3">
+        <label>Cantidad <input type="number" id="cantidad" value="1"></label>
+        <label>Importe Unitario (€) <input type="number" id="importe" step="0.01"></label>
+        <label>Día de la Sesión <input type="text" id="diaSesion" placeholder="Ej: 15 de Mayo"></label>
+      </div>
+      <div class="inline-2">
+        <label style="flex-direction:row; align-items:center; gap:10px;">
+          <input type="checkbox" id="desplazamientoIncluido" style="width:auto;"> Desplazamiento Incluido
+        </label>
+        <input type="number" id="desplazamientoImporte" placeholder="Importe si no está incluido">
+      </div>
+      <div class="inline-2">
+        <label style="flex-direction:row; align-items:center; gap:10px;">
+          <input type="checkbox" id="alojamientoIncluido" style="width:auto;"> Alojamiento Incluido
+        </label>
+        <input type="number" id="alojamientoImporte" placeholder="Importe si no está incluido">
+      </div>
+    </section>
+
+    <!-- IMPUESTOS Y TOTALES -->
+    <section class="card">
+      <h2>IMPUESTOS Y TOTALES</h2>
+      <div class="inline-2">
+        <label>IVA Retenido (%) <input type="number" id="ivaRetenido" value="0"></label>
+        <label>IVA Aplicado (%) <input type="number" id="ivaAplicado" value="21"></label>
+      </div>
+      <div class="totales">
+        <div><span>Subtotal:</span> <span id="subtotal">0,00 €</span></div>
+        <div><span>IVA Retenido:</span> <span id="ivaRetenidoImporte">0,00 €</span></div>
+        <div><span>IVA:</span> <span id="ivaImporte">0,00 €</span></div>
+        <div class="total-line"><span>TOTAL A PAGAR:</span> <span id="total">0,00 €</span></div>
+      </div>
+    </section>
+
+    <!-- OBSERVACIONES Y CUENTA -->
+    <section class="card">
+      <h2>OBSERVACIONES Y PAGO</h2>
+      <label>Observaciones Adicionales
+        <textarea id="observaciones" rows="2"></textarea>
+      </label>
+      <label style="margin-top:10px;">IBAN de la Cuenta
+        <input type="text" id="cuentaActual" placeholder="ES00 0000...">
+      </label>
+      <label>Cuentas Guardadas
+        <select id="cuentasGuardadas"></select>
+      </label>
+      <div class="inline-2">
+        <button id="btnGuardarCuenta">Guardar Cuenta</button>
+        <button id="btnEliminarCuenta">Eliminar Cuenta</button>
+      </div>
+    </section>
+
+    <!-- GESTIÓN DE DATOS -->
+    <section class="card">
+      <h2>GESTIÓN DE DATOS</h2>
+      <div class="inline-2">
+        <button id="btnVerHistorial">Ver Historial de Facturas</button>
+      </div>
+    </section>
+
+    <!-- ACCIONES PRINCIPALES -->
+    <div class="acciones">
+      <button id="btnNuevaFactura" style="flex:1;">NUEVA FACTURA</button>
+      <button id="btnPDF" style="flex:2;">GENERAR PDF / IMPRIMIR</button>
+    </div>
+  </div>
+
+  <!-- MODAL HISTORIAL -->
+  <div id="modalHistorial" class="modal-historial">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Historial de Facturas</h2>
+        <button id="btnCerrarHistorial" class="btn-cerrar">&times;</button>
+      </div>
+      <div id="listaHistorial" class="lista-historial"></div>
+    </div>
+  </div>
+
+  <!-- TOASTS -->
+  <div id="toast" class="toast"></div>
   <div id="toastConfirm" class="toast-confirm">
     <p id="toastConfirmText"></p>
     <div class="toast-buttons">
-      <button id="toastBtnYes">SI</button>
+      <button id="toastBtnYes">SÍ</button>
       <button id="toastBtnNo">NO</button>
     </div>
   </div>
 
-  <div class="app-container">
-
-    <header class="header-main">
-      <h1>KEVIN CHECA</h1>
-      <img src="logo-kevin.png" class="logo-kevin" alt="Logo Kevin" />
-    </header>
-
-    <section class="card">
-      <h2>RAZÓN SOCIAL</h2>
-      <div class="inline-2">
-        <label>Nombre / Razón social <input id="emisorNombre" type="text" value="Kevin Checa" /></label>
-        <label>NIF <input id="emisorNif" type="text" value="21155464H" /></label>
-      </div>
-      <div class="inline-2">
-        <label>Dirección <input id="emisorDireccion" type="text" value="C/ Reyes Católicos nº 1" /></label>
-        <label>Localidad <input id="emisorLocalidad" type="text" value="Ólvega (Soria)" /></label>
-      </div>
-      <div class="inline-3">
-        <label>Código Postal <input id="emisorCP" type="text" value="42110" /></label>
-        <label>Email <input id="emisorEmail" type="email" value="kevinchecafraile@gmail.com" /></label>
-        <label>Fecha factura <input id="fechaFactura" type="date" /></label>
-      </div>
-      <label>Nº factura <input id="numeroFactura" type="text" readonly /></label>
-    </section>
-
-    <section class="card">
-      <h2>Datos del cliente</h2>
-      <div class="inline-2">
-        <label>Nombre / Razón social <input id="clienteNombre" type="text" /></label>
-        <label>Email <input id="clienteEmail" type="email" /></label>
-      </div>
-      <div class="inline-3">
-        <label>Dirección <input id="clienteDireccion" type="text" /></label>
-        <label>Código Postal <input id="clienteCP" type="text" /></label>
-        <label>Localidad <input id="clienteLocalidad" type="text" /></label>
-      </div>
-      <div class="inline-2">
-        <label>Provincia <input id="clienteProvincia" type="text" /></label>
-        <label>Teléfono <input id="clienteTelefono" type="tel" /></label>
-      </div>
-      <div class="inline-2">
-        <label>Tipo doc.
-          <select id="clienteTipoDoc">
-            <option value="DNI">DNI</option>
-            <option value="CIF">CIF</option>
-            <option value="NIE">NIE</option>
-          </select>
-        </label>
-        <label>Nº doc. <input id="clienteDoc" type="text" /></label>
-      </div>
-      <button id="btnGuardarCliente" type="button">Guardar cliente</button>
-      <label>Clientes guardados <select id="clientesGuardados"></select></label>
-      <button id="btnEliminarCliente" type="button">Eliminar cliente</button>
-    </section>
-
-    <section class="card">
-      <h2>Datos de la sesión</h2>
-      <label>Descripción <textarea id="descripcionSesion" rows="2"></textarea></label>
-      <div class="inline-3">
-        <label>Cantidad <input id="cantidad" type="number" min="1" value="1" /></label>
-        <label>Importe (€) <input id="importe" type="number" min="0" step="0.01" /></label>
-        <label>Día sesión <input id="diaSesion" type="date" /></label>
-      </div>
-      <div class="inline-2">
-        <label class="check-label"><input id="desplazamientoIncluido" type="checkbox" /> Desplazamiento incluido</label>
-        <label>Importe (€) <input id="desplazamientoImporte" type="number" min="0" step="0.01" /></label>
-      </div>
-      <div class="inline-2">
-        <label class="check-label"><input id="alojamientoIncluido" type="checkbox" /> Alojamiento incluido</label>
-        <label>Importe (€) <input id="alojamientoImporte" type="number" min="0" step="0.01" /></label>
-      </div>
-      <div class="inline-2">
-        <label>IVA retenido <select id="ivaRetenido"><option value="0">0%</option><option value="4">4%</option><option value="7">7%</option><option value="21">21%</option></select></label>
-        <label>IVA aplicado <select id="ivaAplicado"><option value="0">0%</option><option value="10">10%</option><option value="21" selected>21%</option></select></label>
-      </div>
-      <div class="totales">
-        <div><span>Subtotal:</span> <span id="subtotal">0,00 €</span></div>
-        <div><span>IVA retenido:</span> <span id="ivaRetenidoImporte">0,00 €</span></div>
-        <div><span>IVA:</span> <span id="ivaImporte">0,00 €</span></div>
-        <div class="total-line"><span>Total:</span> <span id="total">0,00 €</span></div>
-      </div>
-    </section>
-
-    <section class="section-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-      <div class="card">
-        <h2>Observaciones</h2>
-        <textarea id="observaciones" rows="3"></textarea>
-      </div>
-      <div class="card">
-        <h2>Cuenta bancaria</h2>
-        <label>Cuenta guardada <select id="cuentasGuardadas"></select></label>
-        <label>IBAN <input id="cuentaActual" type="text" /></label>
-        <button id="btnGuardarCuenta" type="button">Guardar</button>
-        <button id="btnEliminarCuenta" type="button">Eliminar</button>
-      </div>
-    </section>
-
-    <section class="card agradecimiento">
-      <p style="text-align: center; font-weight: bold; color: #22c55e; margin: 5px;">¡KEVIN CHECA AGRADECE SU CONFIANZA!</p>
-    </section>
-
-    <section class="acciones" style="display: flex; gap: 8px;">
-      <button id="btnRecalcular" style="flex:1">Recalcular</button>
-      <button id="btnPDF" style="flex:1">Generar PDF</button>
-    </section>
-
-  </div>
-
-  <!-- AREA DE IMPRESION -->
+  <!-- ÁREA DE IMPRESIÓN OCULTA -->
   <div id="print-area"></div>
 
   <script src="facturaKevin.js"></script>
