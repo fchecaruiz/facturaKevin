@@ -9,13 +9,12 @@
 <body>
 
   <div class="app-container">
-    <!-- CABECERA -->
     <header class="header-main">
       <img src="logo-kevin.png" alt="Logo Kevin" class="logo-kevin">
       <h1>KEVIN CHECA</h1>
     </header>
 
-    <!-- DATOS DEL EMISOR -->
+    <!-- EMISOR -->
     <section class="card">
       <h2>MIS DATOS (EMISOR)</h2>
       <div class="inline-2">
@@ -35,7 +34,7 @@
       <label>Nº Factura <input type="text" id="numeroFactura" placeholder="Ej: 1-2024"></label>
     </section>
 
-    <!-- DATOS DEL CLIENTE -->
+    <!-- CLIENTE -->
     <section class="card">
       <h2>DATOS DEL CLIENTE</h2>
       <label>Seleccionar Cliente Guardado
@@ -65,12 +64,12 @@
         <label>Nº Documento <input type="text" id="clienteDoc"></label>
       </div>
       <div class="inline-2">
-        <button id="btnGuardarCliente">Guardar/Actualizar Cliente</button>
-        <button id="btnEliminarCliente">Eliminar Cliente Seleccionado</button>
+        <button id="btnGuardarCliente" class="btn-blue">Guardar/Actualizar Cliente</button>
+        <button id="btnEliminarCliente" class="btn-red">Eliminar Cliente Seleccionado</button>
       </div>
     </section>
 
-    <!-- DETALLES DEL SERVICIO -->
+    <!-- SERVICIO -->
     <section class="card">
       <h2>DETALLES DEL SERVICIO</h2>
       <label>Descripción de la Sesión / Servicio
@@ -82,20 +81,20 @@
         <label>Día de la Sesión <input type="text" id="diaSesion" placeholder="Ej: 15 de Mayo"></label>
       </div>
       <div class="inline-2">
-        <label style="flex-direction:row; align-items:center; gap:10px;">
-          <input type="checkbox" id="desplazamientoIncluido" style="width:auto;"> Desplazamiento Incluido
+        <label class="row-label">
+          <input type="checkbox" id="desplazamientoIncluido"> Desplazamiento Incluido
         </label>
-        <input type="number" id="desplazamientoImporte" placeholder="Importe si no está incluido">
+        <input type="number" id="desplazamientoImporte" placeholder="Importe si no incluido">
       </div>
       <div class="inline-2">
-        <label style="flex-direction:row; align-items:center; gap:10px;">
-          <input type="checkbox" id="alojamientoIncluido" style="width:auto;"> Alojamiento Incluido
+        <label class="row-label">
+          <input type="checkbox" id="alojamientoIncluido"> Alojamiento Incluido
         </label>
-        <input type="number" id="alojamientoImporte" placeholder="Importe si no está incluido">
+        <input type="number" id="alojamientoImporte" placeholder="Importe si no incluido">
       </div>
     </section>
 
-    <!-- IMPUESTOS Y TOTALES -->
+    <!-- TOTALES -->
     <section class="card">
       <h2>IMPUESTOS Y TOTALES</h2>
       <div class="inline-2">
@@ -110,7 +109,7 @@
       </div>
     </section>
 
-    <!-- OBSERVACIONES Y CUENTA -->
+    <!-- PAGO -->
     <section class="card">
       <h2>OBSERVACIONES Y PAGO</h2>
       <label>Observaciones Adicionales
@@ -123,27 +122,25 @@
         <select id="cuentasGuardadas"></select>
       </label>
       <div class="inline-2">
-        <button id="btnGuardarCuenta">Guardar Cuenta</button>
-        <button id="btnEliminarCuenta">Eliminar Cuenta</button>
+        <button id="btnGuardarCuenta" class="btn-blue">Guardar Cuenta</button>
+        <button id="btnEliminarCuenta" class="btn-red">Eliminar Cuenta</button>
       </div>
     </section>
 
-    <!-- GESTIÓN DE DATOS -->
+    <!-- HISTORIAL -->
     <section class="card">
       <h2>GESTIÓN DE DATOS</h2>
-      <div class="inline-2">
-        <button id="btnVerHistorial">Ver Historial de Facturas</button>
-      </div>
+      <button id="btnVerHistorial" class="btn-cyan">Ver Historial de Facturas</button>
     </section>
 
-    <!-- ACCIONES PRINCIPALES -->
+    <!-- ACCIONES -->
     <div class="acciones">
-      <button id="btnNuevaFactura" style="flex:1;">NUEVA FACTURA</button>
-      <button id="btnPDF" style="flex:2;">GENERAR PDF / IMPRIMIR</button>
+      <button id="btnNuevaFactura" class="btn-purple">NUEVA FACTURA</button>
+      <button id="btnPDF" class="btn-orange">GENERAR PDF / IMPRIMIR</button>
     </div>
   </div>
 
-  <!-- MODAL HISTORIAL -->
+  <!-- MODAL -->
   <div id="modalHistorial" class="modal-historial">
     <div class="modal-content">
       <div class="modal-header">
@@ -154,18 +151,12 @@
     </div>
   </div>
 
-  <!-- TOASTS -->
   <div id="toast" class="toast"></div>
-  <div id="toastConfirm" class="toast-confirm">
-    <p id="toastConfirmText"></p>
-    <div class="toast-buttons">
-      <button id="toastBtnYes">SÍ</button>
-      <button id="toastBtnNo">NO</button>
-    </div>
-  </div>
-
-  <!-- ÁREA DE IMPRESIÓN OCULTA -->
   <div id="print-area"></div>
+
+  <!-- CARGAR FIREBASE (Versión Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <script src="facturaKevin.js"></script>
 </body>
