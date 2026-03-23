@@ -21,6 +21,7 @@ document.getElementById("toastBtnNo").addEventListener("click", () => { hideConf
 /* CÁLCULOS */
 function formatoEuro(v) { return (Number(v) || 0).toFixed(2).replace(".", ",") + " €"; }
 function obtenerNumero(id) { return Number(document.getElementById(id).value) || 0; }
+function obtenerTexto(id) { return document.getElementById(id).value || ""; }
 
 function recalcularTotales() {
   const cantidad = obtenerNumero("cantidad");
@@ -41,23 +42,103 @@ function recalcularTotales() {
   document.getElementById("total").textContent = formatoEuro(base - ret + iva);
 }
 
-/* GENERACIÓN DE PDF (MANTENIDA PARA 1 PÁGINA) */
+/* GENERACIÓN DE PDF LIMPIA */
 function prepararImpresion() {
   const area = document.getElementById("print-area");
-  const original = document.querySelector(".app-container");
-  area.innerHTML = "";
-  area.innerHTML = original.innerHTML;
-  const inputsOrig = original.querySelectorAll("input, select, textarea");
-  const inputsClon = area.querySelectorAll("input, select, textarea");
-  inputsOrig.forEach((inp, i) => {
-    if (inp.type === "checkbox") inputsClon[i].checked = inp.checked;
-    else inputsClon[i].value = inp.value;
-  });
+  
+  // Construimos el HTML de impresión desde cero para evitar errores de clonación
+  area.innerHTML = `
+    <div class="print-header">
+      <h1>KEVIN CHECA</h1>
+      <img src="logo-kevin.png" class="print-logo">
+    </div>
+
+    <div class="print-card">
+      <div class="print-section-title">DATOS DEL EMISOR</div>
+      <div class="print-grid-2">
+        <div><div class="print-label">Nombre / Razón Social</div><div class="print-value">${obtenerTexto("emisorNombre")}</div></div>
+        <div><div class="print-label">NIF</div><div class="print-value">${obtenerTexto("emisorNif")}</div></div>
+      </div>
+      <div class="print-grid-2">
+        <div><div class="print-label">Dirección</div><div class="print-value">${obtenerTexto("emisorDireccion")}</div></div>
+        <div><div class="print-label">Localidad</div><div class="print-value">${obtenerTexto("emisorLocalidad")}</div></div>
+      </div>
+      <div class="print-grid-3">
+        <div><div class="print-label">Código Postal</div><div class="print-value">${obtenerTexto("emisorCP")}</div></div>
+        <div><div class="print-label">Email</div><div class="print-value">${obtenerTexto("emisorEmail")}</div></div>
+        <div><div class="print-label">Fecha Factura</div><div class="print-value">${obtenerTexto("fechaFactura")}</div></div>
+      </div>
+      <div><div class="print-label">Nº Factura</div><div class="print-value">${obtenerTexto("numeroFactura")}</div></div>
+    </div>
+
+    <div class="print-card">
+      <div class="print-section-title">DATOS DEL CLIENTE</div>
+      <div class="print-grid-2">
+        <div><div class="print-label">Nombre / Razón Social</div><div class="print-value">${obtenerTexto("clienteNombre")}</div></div>
+        <div><div class="print-label">Email</div><div class="print-value">${obtenerTexto("clienteEmail")}</div></div>
+      </div>
+      <div class="print-grid-3">
+        <div><div class="print-label">Dirección</div><div class="print-value">${obtenerTexto("clienteDireccion")}</div></div>
+        <div><div class="print-label">Código Postal</div><div class="print-value">${obtenerTexto("clienteCP")}</div></div>
+        <div><div class="print-label">Localidad</div><div class="print-value">${obtenerTexto("clienteLocalidad")}</div></div>
+      </div>
+      <div class="print-grid-2">
+        <div><div class="print-label">Provincia</div><div class="print-value">${obtenerTexto("clienteProvincia")}</div></div>
+        <div><div class="print-label">Teléfono</div><div class="print-value">${obtenerTexto("clienteTelefono")}</div></div>
+      </div>
+      <div class="print-grid-2">
+        <div><div class="print-label">Tipo Doc.</div><div class="print-value">${obtenerTexto("clienteTipoDoc")}</div></div>
+        <div><div class="print-label">Nº Doc.</div><div class="print-value">${obtenerTexto("clienteDoc")}</div></div>
+      </div>
+    </div>
+
+    <div class="print-card">
+      <div class="print-section-title">DETALLES DEL SERVICIO</div>
+      <div><div class="print-label">Descripción</div><div class="print-value">${obtenerTexto("descripcionSesion")}</div></div>
+      <div class="print-grid-3">
+        <div><div class="print-label">Cantidad</div><div class="print-value">${obtenerTexto("cantidad")}</div></div>
+        <div><div class="print-label">Importe Unitario</div><div class="print-value">${formatoEuro(obtenerNumero("importe"))}</div></div>
+        <div><div class="print-label">Día Sesión</div><div class="print-value">${obtenerTexto("diaSesion")}</div></div>
+      </div>
+      <div class="print-grid-2">
+        <div><div class="print-label">Desplazamiento</div><div class="print-value">${document.getElementById("desplazamientoIncluido").checked ? "Incluido" : formatoEuro(obtenerNumero("desplazamientoImporte"))}</div></div>
+        <div><div class="print-label">Alojamiento</div><div class="print-value">${document.getElementById("alojamientoIncluido").checked ? "Incluido" : formatoEuro(obtenerNumero("alojamientoImporte"))}</div></div>
+      </div>
+      
+      <div class="print-totales">
+        <div class="print-total-row"><span>Subtotal:</span> <span>${document.getElementById("subtotal").textContent}</span></div>
+        <div class="print-total-row"><span>IVA Retenido (${obtenerTexto("ivaRetenido")}%):</span> <span>${document.getElementById("ivaRetenidoImporte").textContent}</span></div>
+        <div class="print-total-row"><span>IVA (${obtenerTexto("ivaAplicado")}%):</span> <span>${document.getElementById("ivaImporte").textContent}</span></div>
+        <div class="print-total-row print-total-final"><span>TOTAL:</span> <span>${document.getElementById("total").textContent}</span></div>
+      </div>
+    </div>
+
+    <div class="print-grid-2">
+      <div class="print-card">
+        <div class="print-section-title">OBSERVACIONES</div>
+        <div class="print-value" style="border:none; font-size:10px;">${obtenerTexto("observaciones")}</div>
+      </div>
+      <div class="print-card">
+        <div class="print-section-title">CUENTA BANCARIA</div>
+        <div class="print-label">IBAN</div>
+        <div class="print-value" style="font-size:11px; font-weight:bold;">${obtenerTexto("cuentaActual")}</div>
+      </div>
+    </div>
+
+    <div class="print-footer">¡KEVIN CHECA AGRADECE SU CONFIANZA!</div>
+  `;
+
   window.print();
-  setTimeout(() => { area.innerHTML = ""; }, 500);
 }
 
-/* CUENTAS BANCARIAS CON LIMPIEZA */
+/* FUNCIONES DE LIMPIEZA REUTILIZABLES */
+function limpiarFormularioCliente() {
+  const campos = ["Nombre", "Email", "Direccion", "CP", "Localidad", "Provincia", "Telefono", "Doc"];
+  campos.forEach(c => document.getElementById("cliente" + c).value = "");
+  document.getElementById("clienteTipoDoc").value = "DNI";
+}
+
+/* CUENTAS BANCARIAS */
 function cargarCuentas() {
   const select = document.getElementById("cuentasGuardadas");
   const cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]");
@@ -77,7 +158,10 @@ function guardarCuenta() {
   let cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]");
   if (!cuentas.includes(iban)) cuentas.push(iban);
   localStorage.setItem("cuentasKevinDJ", JSON.stringify(cuentas));
-  cargarCuentas(); showToast("Cuenta guardada", "blue");
+  
+  document.getElementById("cuentaActual").value = ""; 
+  cargarCuentas(); 
+  showToast("Cuenta guardada", "blue");
 }
 
 function eliminarCuenta() {
@@ -86,16 +170,13 @@ function eliminarCuenta() {
   showConfirmToast("¿Eliminar esta cuenta?", () => {
     let cuentas = JSON.parse(localStorage.getItem("cuentasKevinDJ") || "[]").filter(c => c !== iban);
     localStorage.setItem("cuentasKevinDJ", JSON.stringify(cuentas));
-    
-    // CORRECCIÓN: Limpia el campo IBAN tras eliminar
     document.getElementById("cuentaActual").value = ""; 
-    
     cargarCuentas(); 
     showToast("Cuenta eliminada", "red");
   });
 }
 
-/* CLIENTES CON LIMPIEZA TOTAL */
+/* CLIENTES */
 function cargarClientes() {
   const select = document.getElementById("clientesGuardados");
   const clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]");
@@ -121,7 +202,10 @@ function guardarCliente() {
   const idx = clientes.findIndex(c => c.nombre === nombre);
   if (idx > -1) clientes[idx] = cliente; else clientes.push(cliente);
   localStorage.setItem("clientesKevinDJ", JSON.stringify(clientes));
-  cargarClientes(); showToast("Cliente guardado", "blue");
+  
+  limpiarFormularioCliente(); 
+  cargarClientes(); 
+  showToast("Cliente guardado", "blue");
 }
 
 function rellenarCliente() {
@@ -147,11 +231,7 @@ function eliminarCliente() {
     let clientes = JSON.parse(localStorage.getItem("clientesKevinDJ") || "[]").filter(c => c.nombre !== nombre);
     localStorage.setItem("clientesKevinDJ", JSON.stringify(clientes));
     
-    // CORRECCIÓN: Limpia todos los campos tras eliminar
-    const campos = ["Nombre", "Email", "Direccion", "CP", "Localidad", "Provincia", "Telefono", "Doc"];
-    campos.forEach(c => document.getElementById("cliente" + c).value = "");
-    document.getElementById("clienteTipoDoc").value = "DNI";
-
+    limpiarFormularioCliente(); 
     cargarClientes(); 
     showToast("Cliente eliminado", "red");
   });
