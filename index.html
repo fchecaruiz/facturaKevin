@@ -6,7 +6,7 @@
   <title>Generador de Facturas - Kevin Checa</title>
   <link rel="stylesheet" href="facturaKevin.css">
 </head>
-<body>
+<body tabindex="-1">
 
   <div class="app-container">
     <header class="header-main">
@@ -38,7 +38,9 @@
     <section class="card">
       <h2>DATOS DEL CLIENTE</h2>
       <label>Seleccionar Cliente Guardado
-        <select id="clientesGuardados"></select>
+        <select id="clientesGuardados">
+          <option value="">Seleccionar cliente...</option>
+        </select>
       </label>
       <div class="inline-2">
         <label>Nombre / Razón Social <input type="text" id="clienteNombre"></label>
@@ -63,9 +65,10 @@
         </label>
         <label>Nº Documento <input type="text" id="clienteDoc"></label>
       </div>
-      <div class="inline-2">
+      <div class="inline-3">
+        <button id="btnNuevaFactura" class="btn-purple">NUEVA FACTURA</button>
         <button id="btnGuardarCliente" class="btn-blue">Guardar/Actualizar Cliente</button>
-        <button id="btnEliminarCliente" class="btn-red">Eliminar Cliente Seleccionado</button>
+        <button id="btnEliminarCliente" class="btn-red">Eliminar Cliente</button>
       </div>
     </section>
 
@@ -76,21 +79,38 @@
         <textarea id="descripcionSesion" rows="2"></textarea>
       </label>
       <div class="inline-3">
-        <label>Cantidad <input type="number" id="cantidad" value="1"></label>
-        <label>Importe Unitario (€) <input type="number" id="importe" step="0.01"></label>
-        <label>Día de la Sesión <input type="text" id="diaSesion" placeholder="Ej:15-02-2026"></label>
+        <label>Cantidad
+          <select id="cantidad">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+          </select>
+        </label>
+        <label>Importe Unitario (€)
+          <input type="number" id="importe" step="0.01" placeholder="0.00">
+        </label>
+        <label>Día de la Sesión
+          <input type="text" id="diaSesion" placeholder="Ej: 15-02-2026">
+        </label>
       </div>
       <div class="inline-2">
         <label class="row-label">
           <input type="checkbox" id="desplazamientoIncluido"> Desplazamiento Incluido
         </label>
-        <input type="number" id="desplazamientoImporte" placeholder="Importe si no incluido">
+        <input type="number" id="desplazamientoImporte" placeholder="Importe desplazamiento">
       </div>
       <div class="inline-2">
         <label class="row-label">
           <input type="checkbox" id="alojamientoIncluido"> Alojamiento Incluido
         </label>
-        <input type="number" id="alojamientoImporte" placeholder="Importe si no incluido">
+        <input type="number" id="alojamientoImporte" placeholder="Importe alojamiento">
       </div>
     </section>
 
@@ -98,8 +118,21 @@
     <section class="card">
       <h2>IMPUESTOS Y TOTALES</h2>
       <div class="inline-2">
-        <label>IVA Retenido (%) <input type="number" id="ivaRetenido" value="0"></label>
-        <label>IVA Aplicado (%) <input type="number" id="ivaAplicado" value="21"></label>
+        <label>IVA Retenido (%)
+          <select id="ivaRetenido">
+            <option value="0">0%</option>
+            <option value="4">4%</option>
+            <option value="7">7%</option>
+            <option value="10">10%</option>
+          </select>
+        </label>
+        <label>IVA Aplicado (%)
+          <select id="ivaAplicado">
+            <option value="4">4%</option>
+            <option value="10">10%</option>
+            <option value="21" selected>21%</option>
+          </select>
+        </label>
       </div>
       <div class="totales">
         <div><span>Subtotal:</span> <span id="subtotal">0,00 €</span></div>
@@ -119,7 +152,9 @@
         <input type="text" id="cuentaActual" placeholder="ES00 0000...">
       </label>
       <label>Cuentas Guardadas
-        <select id="cuentasGuardadas"></select>
+        <select id="cuentasGuardadas">
+          <option value="">Seleccionar cuenta...</option>
+        </select>
       </label>
       <div class="inline-2">
         <button id="btnGuardarCuenta" class="btn-blue">Guardar Cuenta</button>
@@ -130,34 +165,47 @@
     <!-- HISTORIAL -->
     <section class="card">
       <h2>GESTIÓN DE DATOS</h2>
-      <button id="btnVerHistorial" class="btn-cyan">Ver Historial de Facturas</button>
+      <button id="btnVerHistorial" class="btn-slate">📋 Ver Historial de Facturas</button>
     </section>
 
     <!-- ACCIONES -->
     <div class="acciones">
-      <button id="btnNuevaFactura" class="btn-purple">NUEVA FACTURA</button>
-      <button id="btnPDF" class="btn-orange">GENERAR PDF / IMPRIMIR</button>
+      <button id="btnGuardarFactura" class="btn-blue">💾 GUARDAR FACTURA</button>
+      <button id="btnPDF" class="btn-orange">🖨️ GENERAR PDF / IMPRIMIR</button>
     </div>
   </div>
 
-  <!-- MODAL -->
+  <!-- MODAL HISTORIAL -->
   <div id="modalHistorial" class="modal-historial">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Historial de Facturas</h2>
-        <button id="btnCerrarHistorial" class="btn-cerrar">&times;</button>
+        <h2>📋 Historial de Facturas</h2>
+        <button id="btnCerrarHistorial" class="btn-cerrar">✕</button>
       </div>
       <div id="listaHistorial" class="lista-historial"></div>
+    </div>
+  </div>
+
+  <!-- CONFIRM TOAST -->
+  <div id="confirmOverlay" class="confirm-overlay">
+    <div class="confirm-box">
+      <p id="confirmMsg">¿Estás seguro?</p>
+      <div class="confirm-btns">
+        <button id="confirmSi" class="btn-red">Sí, borrar</button>
+        <button id="confirmNo" class="btn-blue">No, cancelar</button>
+      </div>
     </div>
   </div>
 
   <div id="toast" class="toast"></div>
   <div id="print-area"></div>
 
-  <!-- CARGAR FIREBASE (Versión Compat) -->
+  <!-- CAMPO OCULTO PARA ID DE FACTURA EN EDICIÓN -->
+  <input type="hidden" id="facturaEditandoIdHidden" value="">
+
+  <!-- FIREBASE -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
   <script src="facturaKevin.js"></script>
 </body>
 </html>

@@ -11,8 +11,33 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ✅ CLAVE: null = nueva factura | string = ID de factura que estamos editando
-let facturaEditandoId = null;
+window._facturaEditandoId = null;
+
+function getFacturaEditandoId() {
+  const val = document.getElementById("facturaEditandoIdHidden")?.value;
+  return val && val.trim() !== "" ? val.trim() : null;
+}
+
+function setFacturaEditandoId(id) {
+  window._facturaEditandoId = id;
+  const el = document.getElementById("facturaEditandoIdHidden");
+  if (el) el.value = id || "";
+}
+
+/* --- BLOQUEO NÚMERO FACTURA --- */
+function bloquearNumeroFactura() {
+  const el = document.getElementById("numeroFactura");
+  el.readOnly = true;
+  el.style.opacity = "0.6";
+  el.style.cursor = "not-allowed";
+}
+
+function desbloquearNumeroFactura() {
+  const el = document.getElementById("numeroFactura");
+  el.readOnly = false;
+  el.style.opacity = "1";
+  el.style.cursor = "text";
+}
 
 /* --- UTILIDADES --- */
 function showToast(message, type = "blue") {
@@ -24,20 +49,47 @@ function showToast(message, type = "blue") {
   setTimeout(() => toast.classList.remove("show"), 2500);
 }
 
+function confirmarToast(mensaje) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById("confirmOverlay");
+    const msg = document.getElementById("confirmMsg");
+    msg.textContent = mensaje;
+    overlay.classList.add("show");
+
+    document.getElementById("confirmSi").onclick = () => {
+      overlay.classList.remove("show");
+      resolve(true);
+    };
+    document.getElementById("confirmNo").onclick = () => {
+      overlay.classList.remove("show");
+      resolve(false);
+    };
+  });
+}
+
 function formatoEuro(v) {
   return (Number(v) || 0).toFixed(2).replace(".", ",") + " €";
 }
+
 function obtenerNumero(id) {
-  return Number(document.getElementById(id).value) || 0;
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  return Number(el.value) || 0;
 }
+
 function obtenerTexto(id) {
-  return document.getElementById(id).value || "";
+  return document.getElementById(id)?.value || "";
 }
+
 function setValor(id, valor) {
   const el = document.getElementById(id);
   if (!el) return;
   el.value = valor ?? "";
+  if (el.tagName === "SELECT" && el.value !== String(valor)) {
+    el.selectedIndex = 0;
+  }
 }
+
 function setChecked(id, valor) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -50,11 +102,29 @@ function recalcularTotales() {
   const importe = obtenerNumero("importe");
   let base = cantidad * importe;
 
-  if (!document.getElementById("desplazamientoIncluido").checked) {
-    base += obtenerNumero("desplazamientoImporte");
+  const despIncluido = document.getElementById("desplazamientoIncluido").checked;
+  const alojaIncluido = document.getElementById("alojamientoIncluido").checked;
+  const despInput = document.getElementById("desplazamientoImporte");
+  const alojaInput = document.getElementById("alojamientoImporte");
+
+  if (despIncluido) {
+    despInput.value = "";
+    despInput.disabled = true;
+    despInput.placeholder = "Incluido en el precio";
+  } else {
+    despInput.disabled = false;
+    despInput.placeholder = "Importe desplazamiento";
+    base += Number(despInput.value) || 0;
   }
-  if (!document.getElementById("alojamientoIncluido").checked) {
-    base += obtenerNumero("alojamientoImporte");
+
+  if (alojaIncluido) {
+    alojaInput.value = "";
+    alojaInput.disabled = true;
+    alojaInput.placeholder = "Incluido en el precio";
+  } else {
+    alojaInput.disabled = false;
+    alojaInput.placeholder = "Importe alojamiento";
+    base += Number(alojaInput.value) || 0;
   }
 
   const ret = base * obtenerNumero("ivaRetenido") / 100;
@@ -130,7 +200,7 @@ async function guardarCliente() {
       doc: obtenerTexto("clienteDoc"),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast("Cliente sincronizado en la nube");
+    showToast("Cliente sincronizado en la nube ☁️");
   } catch (error) {
     console.error(error);
     showToast("Error al guardar en la nube", "red");
@@ -140,10 +210,11 @@ async function guardarCliente() {
 async function eliminarCliente() {
   const id = document.getElementById("clientesGuardados").value;
   if (!id) return showToast("Selecciona un cliente", "red");
-  if (confirm("¿Eliminar este cliente de la nube?")) {
+  const ok = await confirmarToast("¿Eliminar este cliente?");
+  if (ok) {
     await db.collection("clientes").doc(id).delete();
-    showToast("Cliente eliminado");
-    document.querySelectorAll(".card input:not([id^='emisor']), textarea").forEach(i => i.value = "");
+    showToast("Cliente eliminado", "red");
+    document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor'])").forEach(i => i.value = "");
   }
 }
 
@@ -171,15 +242,22 @@ function escucharCuentas() {
   db.collection("cuentas").onSnapshot((snapshot) => {
     const select = document.getElementById("cuentasGuardadas");
     if (!select) return;
+    const cuentaActualInput = document.getElementById("cuentaActual");
     select.innerHTML = '<option value="">Seleccionar cuenta...</option>';
+    let primera = null;
     snapshot.forEach((doc) => {
       const data = doc.data() || {};
       const iban = data.iban || doc.id;
+      if (!primera) primera = iban;
       const opt = document.createElement("option");
       opt.value = iban;
       opt.textContent = iban;
       select.appendChild(opt);
     });
+    if (primera && !cuentaActualInput.value) {
+      select.value = primera;
+      cuentaActualInput.value = primera;
+    }
   });
 }
 
@@ -187,15 +265,18 @@ async function guardarCuenta() {
   const iban = obtenerTexto("cuentaActual").trim();
   if (!iban) return showToast("IBAN vacío", "red");
   await db.collection("cuentas").doc(iban).set({ iban });
-  showToast("Cuenta guardada en la nube");
+  showToast("Cuenta guardada en la nube ☁️");
 }
 
 async function eliminarCuenta() {
   const iban = document.getElementById("cuentasGuardadas").value;
   if (!iban) return showToast("Selecciona una cuenta", "red");
-  await db.collection("cuentas").doc(iban).delete();
-  setValor("cuentaActual", "");
-  showToast("Cuenta eliminada");
+  const ok = await confirmarToast("¿Eliminar esta cuenta?");
+  if (ok) {
+    await db.collection("cuentas").doc(iban).delete();
+    setValor("cuentaActual", "");
+    showToast("Cuenta eliminada", "red");
+  }
 }
 
 /* --- HISTORIAL --- */
@@ -247,28 +328,27 @@ function construirFacturaCompletaParaHistorial() {
   };
 }
 
-// ✅ FUNCIÓN CLAVE: crea nueva O actualiza la existente
 async function guardarOActualizarHistorial() {
+  const idActual = window._facturaEditandoId || getFacturaEditandoId();
+
   const factura = construirFacturaCompletaParaHistorial();
+  if (!factura.numero) return showToast("Nº de factura vacío", "red");
+  if (!factura.cliente.nombre) return showToast("Añade un cliente antes de guardar", "red");
 
-  if (!factura.numero) {
-    showToast("Falta Nº factura", "red");
-    return;
-  }
-
-  if (facturaEditandoId) {
-    // ✅ EDITAR: actualiza el documento existente, conserva createdAt
-    await db.collection("historial").doc(facturaEditandoId).set(
-      { ...factura, updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
-      { merge: true }
-    );
-    showToast("Factura actualizada ✅");
-  } else {
-    // ✅ NUEVA: crea documento nuevo con createdAt
-    factura.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-    const ref = await db.collection("historial").add(factura);
-    facturaEditandoId = ref.id; // ✅ guardamos ID para que reimprimir actualice
-    showToast("Factura guardada ✅");
+  try {
+    if (idActual) {
+      await db.collection("historial").doc(idActual).set(factura, { merge: true });
+      showToast("Factura actualizada ✅");
+    } else {
+      factura.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      const ref = await db.collection("historial").add(factura);
+      setFacturaEditandoId(ref.id);
+      bloquearNumeroFactura();
+      showToast("Factura guardada ✅");
+    }
+  } catch (e) {
+    console.error(e);
+    showToast("Error al guardar factura", "red");
   }
 }
 
@@ -278,142 +358,173 @@ async function cargarFacturaHistorial(id) {
     if (!snap.exists) return;
     const f = snap.data() || {};
 
-    if (!f.emisor || !f.cliente || !f.servicio) {
-      showToast("Esta factura es antigua y no se puede abrir completa", "red");
-      return;
-    }
-
-    // ✅ CLAVE: guardar el ID para que al generar PDF actualice en vez de duplicar
-    facturaEditandoId = id;
+    setFacturaEditandoId(id);
 
     setValor("numeroFactura", f.numero);
     setValor("fechaFactura", f.fecha);
+    setValor("emisorNombre", f.emisor?.nombre);
+    setValor("emisorNif", f.emisor?.nif);
+    setValor("emisorDireccion", f.emisor?.direccion);
+    setValor("emisorLocalidad", f.emisor?.localidad);
+    setValor("emisorProvincia", f.emisor?.provincia);
+    setValor("emisorCP", f.emisor?.cp);
+    setValor("emisorEmail", f.emisor?.email);
+    setValor("clienteNombre", f.cliente?.nombre);
+    setValor("clienteEmail", f.cliente?.email);
+    setValor("clienteDireccion", f.cliente?.direccion);
+    setValor("clienteCP", f.cliente?.cp);
+    setValor("clienteLocalidad", f.cliente?.localidad);
+    setValor("clienteProvincia", f.cliente?.provincia);
+    setValor("clienteTelefono", f.cliente?.telefono);
+    setValor("clienteTipoDoc", f.cliente?.tipoDoc || "DNI");
+    setValor("clienteDoc", f.cliente?.doc);
+    setValor("descripcionSesion", f.servicio?.descripcion);
+    setValor("cantidad", f.servicio?.cantidad);
+    setValor("importe", f.servicio?.importeUnitario);
+    setValor("diaSesion", f.servicio?.diaSesion);
+    setChecked("desplazamientoIncluido", f.servicio?.desplazamientoIncluido);
+    setValor("desplazamientoImporte", f.servicio?.desplazamientoImporte);
+    setChecked("alojamientoIncluido", f.servicio?.alojamientoIncluido);
+    setValor("alojamientoImporte", f.servicio?.alojamientoImporte);
+    setValor("ivaRetenido", f.impuestos?.ivaRetenido);
+    setValor("ivaAplicado", f.impuestos?.ivaAplicado);
+    setValor("cuentaActual", f.pago?.iban);
+    setValor("observaciones", f.pago?.observaciones);
 
-    setValor("emisorNombre", f.emisor.nombre);
-    setValor("emisorNif", f.emisor.nif);
-    setValor("emisorDireccion", f.emisor.direccion);
-    setValor("emisorLocalidad", f.emisor.localidad);
-    setValor("emisorProvincia", f.emisor.provincia);
-    setValor("emisorCP", f.emisor.cp);
-    setValor("emisorEmail", f.emisor.email);
-
-    setValor("clienteNombre", f.cliente.nombre);
-    setValor("clienteEmail", f.cliente.email);
-    setValor("clienteDireccion", f.cliente.direccion);
-    setValor("clienteCP", f.cliente.cp);
-    setValor("clienteLocalidad", f.cliente.localidad);
-    setValor("clienteProvincia", f.cliente.provincia);
-    setValor("clienteTelefono", f.cliente.telefono);
-    setValor("clienteTipoDoc", f.cliente.tipoDoc || "DNI");
-    setValor("clienteDoc", f.cliente.doc);
-
-    setValor("descripcionSesion", f.servicio.descripcion);
-    setValor("cantidad", f.servicio.cantidad);
-    setValor("importe", f.servicio.importeUnitario);
-    setValor("diaSesion", f.servicio.diaSesion);
-    setChecked("desplazamientoIncluido", f.servicio.desplazamientoIncluido);
-    setValor("desplazamientoImporte", f.servicio.desplazamientoImporte);
-    setChecked("alojamientoIncluido", f.servicio.alojamientoIncluido);
-    setValor("alojamientoImporte", f.servicio.alojamientoImporte);
-
-    setValor("ivaRetenido", f.impuestos.ivaRetenido);
-    setValor("ivaAplicado", f.impuestos.ivaAplicado);
-    setValor("cuentaActual", f.pago.iban);
-    setValor("observaciones", f.pago.observaciones);
-
+    bloquearNumeroFactura();
     recalcularTotales();
     document.getElementById("modalHistorial").classList.remove("show");
-    showToast("Factura cargada — modifica y genera PDF para actualizar");
+    showToast("Factura cargada — modifica y pulsa 💾 GUARDAR ✅");
   } catch (e) {
     console.error(e);
     showToast("Error al abrir factura", "red");
   }
 }
 
-async function eliminarFacturaHistorial(id) {
-  if (!confirm("¿Borrar esta factura del historial?")) return;
+async function duplicarFacturaHistorial(id) {
   try {
-    await db.collection("historial").doc(id).delete();
-    // Si borramos la que estábamos editando, resetear
-    if (facturaEditandoId === id) facturaEditandoId = null;
-    showToast("Factura eliminada", "red");
-    await mostrarHistorial();
+    const snap = await db.collection("historial").doc(id).get();
+    if (!snap.exists) return;
+    const f = snap.data() || {};
+
+    // Rellenar todos los campos con los datos de la factura original
+    setValor("emisorNombre", f.emisor?.nombre);
+    setValor("emisorNif", f.emisor?.nif);
+    setValor("emisorDireccion", f.emisor?.direccion);
+    setValor("emisorLocalidad", f.emisor?.localidad);
+    setValor("emisorProvincia", f.emisor?.provincia);
+    setValor("emisorCP", f.emisor?.cp);
+    setValor("emisorEmail", f.emisor?.email);
+    setValor("clienteNombre", f.cliente?.nombre);
+    setValor("clienteEmail", f.cliente?.email);
+    setValor("clienteDireccion", f.cliente?.direccion);
+    setValor("clienteCP", f.cliente?.cp);
+    setValor("clienteLocalidad", f.cliente?.localidad);
+    setValor("clienteProvincia", f.cliente?.provincia);
+    setValor("clienteTelefono", f.cliente?.telefono);
+    setValor("clienteTipoDoc", f.cliente?.tipoDoc || "DNI");
+    setValor("clienteDoc", f.cliente?.doc);
+    setValor("descripcionSesion", f.servicio?.descripcion);
+    setValor("cantidad", f.servicio?.cantidad);
+    setValor("importe", f.servicio?.importeUnitario);
+    setValor("diaSesion", f.servicio?.diaSesion);
+    setChecked("desplazamientoIncluido", f.servicio?.desplazamientoIncluido);
+    setValor("desplazamientoImporte", f.servicio?.desplazamientoImporte);
+    setChecked("alojamientoIncluido", f.servicio?.alojamientoIncluido);
+    setValor("alojamientoImporte", f.servicio?.alojamientoImporte);
+    setValor("ivaRetenido", f.impuestos?.ivaRetenido);
+    setValor("ivaAplicado", f.impuestos?.ivaAplicado);
+    setValor("cuentaActual", f.pago?.iban);
+    setValor("observaciones", f.pago?.observaciones);
+
+    // Nueva factura: limpiar ID, nuevo número y fecha de hoy
+    setFacturaEditandoId(null);
+    await asignarNumeroFactura();
+    document.getElementById("fechaFactura").value = new Date().toISOString().slice(0, 10);
+    desbloquearNumeroFactura();
+
+    recalcularTotales();
+    document.getElementById("modalHistorial").classList.remove("show");
+    showToast("Factura duplicada — revisa y pulsa 💾 GUARDAR 📑");
   } catch (e) {
     console.error(e);
-    showToast("Error al borrar", "red");
+    showToast("Error al duplicar factura", "red");
   }
+}
+
+async function eliminarFacturaHistorial(id) {
+  const ok = await confirmarToast("¿Borrar esta factura del historial?");
+  if (!ok) return;
+  await db.collection("historial").doc(id).delete();
+  if (getFacturaEditandoId() === id) setFacturaEditandoId(null);
+  showToast("Factura eliminada", "red");
+  await mostrarHistorial();
 }
 
 async function mostrarHistorial() {
   const lista = document.getElementById("listaHistorial");
-  const snapshot = await db.collection("historial").orderBy("createdAt", "desc").limit(50).get();
-
-  lista.innerHTML = snapshot.empty
-    ? "<p style='text-align:center; padding:20px;'>Historial vacío</p>"
-    : "";
-
-  snapshot.forEach(doc => {
-    const f = doc.data() || {};
-    const esActual = facturaEditandoId === doc.id;
-    const puedeAbrir = !!(f.emisor && f.cliente && f.servicio);
-
-    const clienteNombre = (f.cliente && f.cliente.nombre) ? f.cliente.nombre : (f.cliente || "");
-    const total = f.totalTexto || f.total || "";
-    const fecha = f.fecha || "";
-    const numero = f.numero || "(sin nº)";
-
-    const div = document.createElement("div");
-    div.style.cssText = `
-      border-bottom: 1px solid #334155;
-      padding: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      ${esActual ? "background: #1e3a5f;" : ""}
-    `;
-
-    div.innerHTML = `
-      <div style="flex:1; min-width:0;">
-        <div style="font-weight:bold; color:${esActual ? "#f97316" : "#22c55e"}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-          ${numero}
-          ${esActual ? '<span style="font-size:0.75rem; background:#f97316; color:#fff; padding:1px 6px; border-radius:4px; margin-left:6px;">EDITANDO</span>' : ""}
-          <span style="color:#94a3b8; font-weight:normal; font-size:0.8rem;">(${fecha})</span>
-        </div>
-        <div style="font-size:0.9rem; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-          ${clienteNombre || "-"}
-        </div>
-        <div style="color:#f97316; font-weight:bold;">${total}</div>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <button
-          onclick="cargarFacturaHistorial('${doc.id}')"
-          title="${puedeAbrir ? "Ver y editar" : "No disponible (antigua)"}"
-          ${puedeAbrir ? "" : "disabled"}
-          style="width:38px; height:38px; background:${puedeAbrir ? "#3b82f6" : "#475569"}; border-radius:8px; padding:0; cursor:${puedeAbrir ? "pointer" : "not-allowed"};">
-          👁️
-        </button>
-        <button
-          onclick="eliminarFacturaHistorial('${doc.id}')"
-          title="Borrar"
-          style="width:38px; height:38px; background:#ef4444; border-radius:8px; padding:0; cursor:pointer;">
-          🗑️
-        </button>
-      </div>
-    `;
-    lista.appendChild(div);
-  });
-
+  lista.innerHTML = "<p style='text-align:center; padding:20px; color:#94a3b8;'>Cargando...</p>";
   document.getElementById("modalHistorial").classList.add("show");
+
+  try {
+    const snapshot = await db.collection("historial").orderBy("createdAt", "desc").limit(50).get();
+
+    if (snapshot.empty) {
+      lista.innerHTML = "<p style='text-align:center; padding:20px; color:#94a3b8;'>Historial vacío</p>";
+      return;
+    }
+
+    lista.innerHTML = "";
+    snapshot.forEach(doc => {
+      const f = doc.data() || {};
+      const esActual = getFacturaEditandoId() === doc.id;
+      const div = document.createElement("div");
+      div.style.cssText = `border-bottom: 1px solid #334155; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; ${esActual ? "background: #1e3a5f;" : ""}`;
+
+      div.innerHTML = `
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:bold; color:${esActual ? "#f97316" : "#60a5fa"};">
+            ${f.numero || "-"} <span style="color:#64748b; font-size:0.78rem;">(${f.fecha || ""})</span>
+          </div>
+          <div style="font-size:0.88rem; color:#cbd5e1; margin-top:2px;">${f.cliente?.nombre || "-"}</div>
+          <div style="color:#f97316; font-weight:bold; margin-top:2px;">${f.totalTexto || "0,00 €"}</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+          <button data-id="${doc.id}" class="btn-cargar-factura" title="Cargar/Editar factura">👁️</button>
+          <button data-id="${doc.id}" class="btn-duplicar-factura" title="Duplicar como nueva factura">📑</button>
+          <button data-id="${doc.id}" class="btn-borrar-factura" title="Eliminar factura">🗑️</button>
+        </div>
+      `;
+      lista.appendChild(div);
+    });
+
+    lista.querySelectorAll(".btn-cargar-factura").forEach(btn => {
+      btn.addEventListener("click", () => cargarFacturaHistorial(btn.dataset.id));
+    });
+    lista.querySelectorAll(".btn-duplicar-factura").forEach(btn => {
+      btn.addEventListener("click", () => duplicarFacturaHistorial(btn.dataset.id));
+    });
+    lista.querySelectorAll(".btn-borrar-factura").forEach(btn => {
+      btn.addEventListener("click", () => eliminarFacturaHistorial(btn.dataset.id));
+    });
+
+  } catch (e) {
+    console.error(e);
+    lista.innerHTML = "<p style='text-align:center; color:#ef4444;'>Error al cargar historial</p>";
+  }
 }
 
 /* --- IMPRESIÓN PDF --- */
 function prepararImpresion() {
+  const logoSrc = document.querySelector(".logo-kevin")?.src || "logo-kevin.png";
   const area = document.getElementById("print-area");
   area.innerHTML = `
     <div class="print-header">
-      <h1>KEVIN CHECA</h1>
-      <img src="logo-kevin.png" class="print-logo">
+      <div>
+        <h1>KEVIN CHECA</h1>
+        <div style="font-size:10px; color:#475569; letter-spacing:1px;">FACTURA PROFESIONAL</div>
+      </div>
+      <img src="${logoSrc}" class="print-logo" crossorigin="anonymous">
     </div>
     <div class="print-card">
       <div class="print-section-title">DATOS DEL EMISOR</div>
@@ -431,7 +542,7 @@ function prepararImpresion() {
         <div><div class="print-label">EMAIL</div><div class="print-value">${obtenerTexto("emisorEmail")}</div></div>
         <div><div class="print-label">FECHA</div><div class="print-value">${obtenerTexto("fechaFactura")}</div></div>
       </div>
-      <div><div class="print-label">Nº FACTURA</div><div class="print-value">${obtenerTexto("numeroFactura")}</div></div>
+      <div><div class="print-label">Nº FACTURA</div><div class="print-value" style="font-size:14px; font-weight:800; color:#1e40af;">${obtenerTexto("numeroFactura")}</div></div>
     </div>
     <div class="print-card">
       <div class="print-section-title">DATOS DEL CLIENTE</div>
@@ -451,55 +562,57 @@ function prepararImpresion() {
     </div>
     <div class="print-card">
       <div class="print-section-title">DETALLES DEL SERVICIO</div>
-      <div class="print-value" style="min-height:40px;">${obtenerTexto("descripcionSesion")}</div>
+      <div class="print-value" style="min-height:30px; white-space:pre-wrap; margin-bottom:8px;">${obtenerTexto("descripcionSesion")}</div>
       <div class="print-grid-3">
-        <div><div class="print-label">CANTIDAD</div><div class="print-value">${obtenerTexto("cantidad")}</div></div>
+        <div><div class="print-label">CANTIDAD</div><div class="print-value">${obtenerNumero("cantidad")}</div></div>
         <div><div class="print-label">PRECIO UNIDAD</div><div class="print-value">${formatoEuro(obtenerNumero("importe"))}</div></div>
         <div><div class="print-label">DÍA SESIÓN</div><div class="print-value">${obtenerTexto("diaSesion")}</div></div>
       </div>
       <div class="print-totales">
         <div class="print-total-row"><span>Subtotal:</span><span>${document.getElementById("subtotal").textContent}</span></div>
-        <div class="print-total-row"><span>IVA Retenido (${obtenerTexto("ivaRetenido")}%):</span><span>${document.getElementById("ivaRetenidoImporte").textContent}</span></div>
-        <div class="print-total-row"><span>IVA (${obtenerTexto("ivaAplicado")}%):</span><span>${document.getElementById("ivaImporte").textContent}</span></div>
-        <div class="print-total-row print-total-final"><span>TOTAL:</span><span>${document.getElementById("total").textContent}</span></div>
+        <div class="print-total-row"><span>IVA Retenido (${obtenerNumero("ivaRetenido")}%):</span><span>${document.getElementById("ivaRetenidoImporte").textContent}</span></div>
+        <div class="print-total-row"><span>IVA (${obtenerNumero("ivaAplicado")}%):</span><span>${document.getElementById("ivaImporte").textContent}</span></div>
+        <div class="print-total-row print-total-final"><span>TOTAL A PAGAR:</span><span>${document.getElementById("total").textContent}</span></div>
       </div>
     </div>
     <div class="print-card">
-      <div class="print-section-title">PAGO</div>
-      <div class="print-label">IBAN</div>
-      <div class="print-value" style="font-weight:bold;">${obtenerTexto("cuentaActual")}</div>
+      <div class="print-section-title">DATOS DE PAGO</div>
+      <div class="print-label">IBAN / CUENTA BANCARIA</div>
+      <div class="print-value" style="font-weight:800; font-size:13px; letter-spacing:1px;">${obtenerTexto("cuentaActual")}</div>
+      ${obtenerTexto("observaciones") ? `<div class="print-label" style="margin-top:8px;">OBSERVACIONES</div><div class="print-value">${obtenerTexto("observaciones")}</div>` : ""}
     </div>
     <div class="print-footer">¡GRACIAS POR TU CONFIANZA!</div>
   `;
 
-  // ✅ async/await para que window.print() espere a Firebase
-  (async () => {
-    try {
-      await guardarOActualizarHistorial();
-    } catch (e) {
-      console.error("Error guardando historial:", e);
-      showToast("Aviso: no se pudo guardar en historial", "red");
-    }
-    window.print();
-  })();
+  document.activeElement?.blur();
+  document.body.focus();
+  setTimeout(() => window.print(), 600);
 }
 
 /* --- INICIALIZACIÓN --- */
 window.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("fechaFactura").value = new Date().toISOString().slice(0, 10);
-
   escucharClientes();
   escucharCuentas();
   await asignarNumeroFactura();
 
   document.getElementById("btnNuevaFactura").onclick = async () => {
-    // ✅ Resetear modo edición al crear nueva factura
-    facturaEditandoId = null;
-    document.querySelectorAll(".card input:not([id^='emisor']), textarea").forEach(i => i.value = "");
+    setFacturaEditandoId(null);
+    desbloquearNumeroFactura();
+    document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor'])").forEach(i => i.value = "");
+    document.getElementById("cantidad").selectedIndex = 0;
+    document.getElementById("ivaRetenido").selectedIndex = 0;
+    document.getElementById("ivaAplicado").selectedIndex = 2;
+    document.getElementById("desplazamientoIncluido").checked = false;
+    document.getElementById("alojamientoIncluido").checked = false;
     recalcularTotales();
     await asignarNumeroFactura();
     document.getElementById("clienteNombre").focus();
-    showToast("Nueva factura lista");
+    showToast("Nueva factura lista 🆕");
+  };
+
+  document.getElementById("btnGuardarFactura").onclick = async () => {
+    await guardarOActualizarHistorial();
   };
 
   document.getElementById("btnPDF").onclick = prepararImpresion;
@@ -511,11 +624,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("cuentasGuardadas").onchange = (e) => setValor("cuentaActual", e.target.value);
   document.getElementById("btnVerHistorial").onclick = mostrarHistorial;
   document.getElementById("btnCerrarHistorial").onclick = () => document.getElementById("modalHistorial").classList.remove("show");
+  document.getElementById("desplazamientoIncluido").onchange = recalcularTotales;
+  document.getElementById("alojamientoIncluido").onchange = recalcularTotales;
 
   document.querySelectorAll("input, select, textarea").forEach(el => el.oninput = recalcularTotales);
   recalcularTotales();
 });
-
-// Globales para botones inline del historial
-window.cargarFacturaHistorial = cargarFacturaHistorial;
-window.eliminarFacturaHistorial = eliminarFacturaHistorial;
