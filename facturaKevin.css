@@ -378,3 +378,10 @@ button:hover { opacity: 0.88; }
   .btn-group-clientes button { flex: 1 1 140px; }
   .acciones button { font-size: 0.95rem; }
 }
+
+
+.historial-total {
+  color: #43f916 !important;
+  font-weight: 800 !important;
+  font-size: 1.05rem !important;
+}

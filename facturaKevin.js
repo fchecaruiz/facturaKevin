@@ -323,10 +323,10 @@ async function mostrarHistorial() {
       item.innerHTML = `
         <div class="historial-info">
           <strong>Factura ${d.numero} — ${d.cliente}</strong>
-          <span>${d.fecha || ""} · ${d.total}</span>
+          <span class="historial-total">${d.total}</span>
         </div>
         <div class="historial-btns">
-          <button class="btn-cargar-factura" title="Cargar">📂</button>
+          <button class="btn-cargar-factura" title="Ver/Cargar">👁️</button>
           <button class="btn-duplicar-factura" title="Duplicar">📋</button>
           <button class="btn-borrar-factura" title="Borrar">🗑️</button>
         </div>
@@ -385,14 +385,14 @@ function cargarFactura(id, d) {
   setValor("cuentaActual", d.cuenta);
   setValor("observaciones", d.observaciones);
   recalcularTotales();
-  showToast(id ? "Factura cargada 📂" : "Factura duplicada 📋");
+  showToast(id ? "Factura cargada 👁️" : "Factura duplicada 📋");
 }
 
 /* --- IMPRESIÓN PDF --- */
 function prepararImpresion() {
   const logoSrc = document.querySelector(".logo-kevin")?.src || "logo-kevin.png";
-  const area = document.getElementById("print-area");
-  area.innerHTML = `
+
+  const contenido = `
     <div class="print-header">
       <div>
         <h1>KEVIN CHECA</h1>
@@ -465,9 +465,135 @@ function prepararImpresion() {
     <div class="print-footer">¡GRACIAS POR TU CONFIANZA!</div>
   `;
 
-  document.activeElement?.blur();
-  document.body.focus();
-  setTimeout(() => window.print(), 600);
+  const ventana = window.open("", "_blank");
+  ventana.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Factura ${obtenerTexto("numeroFactura")}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @page { size: A4 portrait; margin: 0; }
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      background: #f1f5f9;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 13px;
+      color: #1e293b;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .btn-imprimir {
+      display: block;
+      width: 210mm;
+      margin: 0 auto 16px auto;
+      padding: 14px;
+      background: #f97316;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 1px;
+    }
+    .btn-imprimir:hover { opacity: 0.88; }
+    @media print {
+      body { padding: 0; background: white; }
+      .btn-imprimir { display: none !important; }
+      .factura-wrapper {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0;
+        padding: 14mm 16mm;
+        box-shadow: none;
+        border-radius: 0;
+      }
+    }
+    @media screen {
+      body { padding: 20px 0; }
+      .factura-wrapper {
+        box-shadow: 0 4px 32px rgba(0,0,0,0.15);
+        border-radius: 8px;
+      }
+    }
+    .factura-wrapper {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: white;
+      padding: 14mm 16mm;
+      box-sizing: border-box;
+    }
+    @media screen and (max-width: 230mm) {
+      .factura-wrapper { width: 100%; padding: 16px; min-height: unset; }
+      .btn-imprimir { width: 100%; }
+    }
+    .print-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #3b82f6;
+    }
+    .print-header h1 { font-size: 22px; color: #1e40af; letter-spacing: 3px; }
+    .print-header > div > div { font-size: 10px; color: #475569; letter-spacing: 1px; margin-top: 2px; }
+    .print-logo {
+      width: 64px; height: 64px;
+      border-radius: 50%; object-fit: cover;
+      border: 2px solid #3b82f6;
+    }
+    .print-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-section-title {
+      font-size: 8px; font-weight: 800; color: #1e40af;
+      letter-spacing: 2px; text-transform: uppercase;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px; margin-bottom: 8px;
+    }
+    .print-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+    .print-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+    .print-label { font-size: 7px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+    .print-value { font-size: 11px; color: #1e293b; font-weight: 500; margin-top: 2px; }
+    .print-totales {
+      background: #f1f5f9;
+      border-radius: 6px; padding: 8px 12px; margin-top: 8px;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .print-total-row { display: flex; justify-content: space-between; font-size: 10px; color: #475569; padding: 2px 0; }
+    .print-total-final {
+      border-top: 2px solid #3b82f6; margin-top: 4px; padding-top: 4px;
+      font-size: 14px !important; font-weight: 800; color: #f97316 !important;
+    }
+    .print-total-final span { color: #f97316 !important; }
+    .print-footer {
+      text-align: center; font-size: 9px; color: #64748b;
+      margin-top: 10px; padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+      letter-spacing: 2px; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="factura-wrapper">
+    ${contenido}
+  </div>
+  <script>
+    window.onload = function() { window.print(); }
+  <\/script>
+</body>
+</html>`);
+  ventana.document.close();
 }
 
 /* --- INICIALIZACIÓN --- */
