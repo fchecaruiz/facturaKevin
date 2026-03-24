@@ -12,6 +12,7 @@ body {
 /* ===== LAYOUT ===== */
 .app-container {
   max-width: 860px;
+  width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -89,10 +90,7 @@ input:focus, select:focus, textarea:focus {
   border-color: #60a5fa;
 }
 textarea { resize: vertical; min-height: 60px; }
-input:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+input:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ===== GRIDS ===== */
 .inline-2 {
@@ -130,12 +128,10 @@ input:disabled {
   position: relative;
   transition: background 0.2s, border-color 0.2s;
 }
-
 .row-label input[type="checkbox"]:checked {
   background: #ef4444;
   border-color: #ef4444;
 }
-
 .row-label input[type="checkbox"]:checked::after {
   content: "✓";
   position: absolute;
@@ -145,6 +141,7 @@ input:disabled {
   font-size: 13px;
   font-weight: bold;
 }
+
 /* ===== TOTALES ===== */
 .totales {
   background: #0f172a;
@@ -190,28 +187,49 @@ button:active { transform: translateY(0); }
 .btn-purple { background: #8b5cf6; color: white; }
 .btn-slate  { background: #475569; color: white; }
 
+/* ===== GRUPO BOTONES CLIENTES ===== */
+.btn-group-clientes {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.btn-group-clientes button {
+  flex: 1 1 120px;
+  min-height: 46px;
+  font-size: 0.8rem;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.2;
+}
+
 /* ===== BOTONES HISTORIAL ===== */
 .btn-cargar-factura,
+.btn-duplicar-factura,
 .btn-borrar-factura {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  font-size: 1.15rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  text-transform: none;
-  letter-spacing: 0;
-  transition: opacity 0.2s, transform 0.1s;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 8px !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s !important;
+  font-size: 1.1rem !important;
+  padding: 0 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
   flex-shrink: 0;
 }
-.btn-cargar-factura { background: #3b82f6; }
-.btn-cargar-factura:hover { opacity: 0.85; transform: translateY(-1px); }
-.btn-borrar-factura { background: #ef4444; }
-.btn-borrar-factura:hover { opacity: 0.85; transform: translateY(-1px); }
+.btn-cargar-factura  { background: #334155 !important; }
+.btn-duplicar-factura { background: #4f46e5 !important; }
+.btn-borrar-factura  { background: #991b1b !important; }
+.btn-cargar-factura:hover,
+.btn-duplicar-factura:hover,
+.btn-borrar-factura:hover {
+  transform: scale(1.1) !important;
+  filter: brightness(1.3);
+}
 
 /* ===== BOTÓN CERRAR MODAL ===== */
 .btn-cerrar {
@@ -233,10 +251,7 @@ button:active { transform: translateY(0); }
   text-transform: none;
   letter-spacing: 0;
 }
-.btn-cerrar:hover {
-  background: #b91c1c;
-  transform: scale(1.1);
-}
+.btn-cerrar:hover { background: #b91c1c; transform: scale(1.1); }
 
 /* ===== ACCIONES ===== */
 .acciones {
@@ -270,7 +285,6 @@ button:active { transform: translateY(0); }
   border: 1px solid #334155;
   overflow: hidden;
 }
-
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -289,7 +303,6 @@ button:active { transform: translateY(0); }
   border: none;
   padding: 0;
 }
-
 .lista-historial { overflow-y: auto; flex: 1; }
 
 /* ===== CONFIRM OVERLAY ===== */
@@ -304,7 +317,6 @@ button:active { transform: translateY(0); }
   padding: 16px;
 }
 .confirm-overlay.show { display: flex; }
-
 .confirm-box {
   background: #1e293b;
   border: 1px solid #475569;
@@ -322,16 +334,8 @@ button:active { transform: translateY(0); }
   line-height: 1.5;
   font-weight: 600;
 }
-.confirm-btns {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-}
-.confirm-btns button {
-  flex: 1;
-  padding: 12px;
-  font-size: 0.9rem;
-}
+.confirm-btns { display: flex; gap: 12px; justify-content: center; }
+.confirm-btns button { flex: 1; padding: 12px; font-size: 0.9rem; }
 
 /* ===== TOAST ===== */
 .toast {
@@ -359,7 +363,17 @@ button:active { transform: translateY(0); }
 #print-area { display: none; }
 
 @media print {
+  @page { size: A4; margin: 0; }
+
+  html, body {
+    width: 210mm;
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   body > * { display: none !important; }
+
   #print-area {
     display: block !important;
     position: fixed;
@@ -367,9 +381,10 @@ button:active { transform: translateY(0); }
     background: white;
     color: #1e293b;
     font-family: 'Segoe UI', Arial, sans-serif;
-    padding: 24px 28px;
+    padding: 14mm 16mm;
     font-size: 11px;
     z-index: 99999;
+    box-sizing: border-box;
   }
 
   .print-header {
@@ -380,22 +395,15 @@ button:active { transform: translateY(0); }
     padding-bottom: 10px;
     border-bottom: 3px solid #3b82f6;
   }
-  .print-header h1 {
-    font-size: 22px;
-    color: #1e40af;
-    letter-spacing: 3px;
-  }
+  .print-header h1 { font-size: 22px; color: #1e40af; letter-spacing: 3px; }
   .print-logo {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    object-fit: cover;
+    width: 70px; height: 70px;
+    border-radius: 50%; object-fit: cover;
     border: 2px solid #3b82f6;
     display: block !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-
   .print-card {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -406,130 +414,66 @@ button:active { transform: translateY(0); }
     print-color-adjust: exact;
   }
   .print-section-title {
-    font-size: 9px;
-    font-weight: 800;
-    color: #1e40af;
-    letter-spacing: 2px;
-    text-transform: uppercase;
+    font-size: 9px; font-weight: 800; color: #1e40af;
+    letter-spacing: 2px; text-transform: uppercase;
     border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 4px;
-    margin-bottom: 8px;
+    padding-bottom: 4px; margin-bottom: 8px;
   }
-  .print-grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-  .print-grid-3 {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-  .print-label {
-    font-size: 8px;
-    font-weight: 700;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .print-value {
-    font-size: 11px;
-    color: #1e293b;
-    font-weight: 500;
-    margin-top: 1px;
-  }
-
+  .print-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+  .print-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+  .print-label { font-size: 8px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+  .print-value { font-size: 11px; color: #1e293b; font-weight: 500; margin-top: 1px; }
   .print-totales {
-    background: #f1f5f9;
-    border-radius: 6px;
-    padding: 8px 12px;
-    margin-top: 8px;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    background: #f1f5f9; border-radius: 6px;
+    padding: 8px 12px; margin-top: 8px;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  .print-total-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    color: #475569;
-    padding: 2px 0;
-  }
+  .print-total-row { display: flex; justify-content: space-between; font-size: 10px; color: #475569; padding: 2px 0; }
   .print-total-final {
-    border-top: 2px solid #3b82f6;
-    margin-top: 4px;
-    padding-top: 4px;
-    font-size: 13px !important;
-    font-weight: 800;
-    color: #f97316 !important;
+    border-top: 2px solid #3b82f6; margin-top: 4px; padding-top: 4px;
+    font-size: 13px !important; font-weight: 800; color: #f97316 !important;
   }
   .print-total-final span { color: #f97316 !important; }
-
   .print-footer {
-    text-align: center;
-    font-size: 10px;
-    color: #64748b;
-    margin-top: 10px;
-    padding-top: 8px;
+    text-align: center; font-size: 10px; color: #64748b;
+    margin-top: 10px; padding-top: 8px;
     border-top: 1px solid #e2e8f0;
-    letter-spacing: 2px;
-    text-transform: uppercase;
+    letter-spacing: 2px; text-transform: uppercase;
   }
 }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 600px) {
-  body { padding: 10px; }
-  .inline-2 { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .inline-3 { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-  input, select, textarea { font-size: 0.82rem; padding: 8px 9px; }
-  .card { padding: 14px; gap: 10px; }
-  .card h2 { font-size: 0.75rem; }
-  .acciones { flex-direction: column; }
-  .acciones button { width: 100%; }
-  .header-main h1 { font-size: 1.3rem; }
-  .logo-kevin { width: 45px; height: 45px; }
+/* ===== RESPONSIVE MÓVIL ===== */
+@media (max-width: 480px) {
+  body { padding: 8px; }
+  .app-container { gap: 12px; }
+  .header-main { padding: 14px; gap: 12px; }
+  .header-main h1 { font-size: 1.2rem; }
+  .logo-kevin { width: 42px; height: 42px; }
+  .card { padding: 12px; gap: 10px; }
+  .card h2 { font-size: 0.72rem; }
+
+  /* font-size 16px evita el zoom automático en iOS Safari */
+  input, select, textarea { font-size: 16px; padding: 9px 10px; }
+
+  .inline-2 { grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* 3 columnas se quedan muy estrechas en móvil, mejor 2 */
+  .inline-3 { grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* Botones de cliente apilados verticalmente */
+  .btn-group-clientes { flex-direction: column; gap: 8px; }
+  .btn-group-clientes button { width: 100%; flex: none; font-size: 0.85rem; padding: 13px; }
+
+  /* Botones de acción abajo apilados */
+  .acciones { flex-direction: column; gap: 10px; }
+  .acciones button { width: 100%; font-size: 0.95rem; padding: 15px; }
 }
 
-
-.btn-duplicar-factura {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  font-size: 1.15rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: #8b5cf6;
-  transition: opacity 0.2s, transform 0.1s;
-  flex-shrink: 0;
-}
-
-
-/* ESTILOS PARA LOS BOTONES DEL HISTORIAL */
-.btn-cargar-factura, .btn-duplicar-factura, .btn-borrar-factura {
-  width: 38px !important;
-  height: 38px !important;
-  border-radius: 8px !important;
-  border: none !important;
-  cursor: pointer !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transition: all 0.2s !important;
-  font-size: 1.1rem !important;
-  padding: 0 !important;
-}
-
-.btn-cargar-factura { background: #334155 !important; }
-.btn-duplicar-factura { background: #4f46e5 !important; }
-.btn-borrar-factura { background: #991b1b !important; }
-
-.btn-cargar-factura:hover, .btn-duplicar-factura:hover, .btn-borrar-factura:hover {
-  transform: scale(1.1);
-  filter: brightness(1.3);
+/* ===== RESPONSIVE TABLET ===== */
+@media (min-width: 481px) and (max-width: 768px) {
+  body { padding: 12px; }
+  .inline-3 { grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .btn-group-clientes { flex-wrap: wrap; }
+  .btn-group-clientes button { flex: 1 1 140px; }
+  .acciones button { font-size: 0.95rem; }
 }
