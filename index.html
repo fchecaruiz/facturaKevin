@@ -98,62 +98,67 @@
         <label>Importe Unitario (€)
           <input type="number" id="importe" step="0.01" placeholder="0.00">
         </label>
-        <label>Día de la Sesión
-          <input type="text" id="diaSesion" placeholder="Ej: 15-02-2026">
+        <label>Día Sesión
+          <input type="date" id="diaSesion">
         </label>
       </div>
-      <div class="inline-2">
-        <label class="row-label">
-          <input type="checkbox" id="desplazamientoIncluido"> Desplazamiento Incluido
-        </label>
-        <input type="number" id="desplazamientoImporte" placeholder="Importe desplazamiento">
-      </div>
-      <div class="inline-2">
-        <label class="row-label">
-          <input type="checkbox" id="alojamientoIncluido"> Alojamiento Incluido
-        </label>
-        <input type="number" id="alojamientoImporte" placeholder="Importe alojamiento">
-      </div>
-    </section>
-
-    <!-- TOTALES -->
-    <section class="card">
-      <h2>IMPUESTOS Y TOTALES</h2>
-      <div class="inline-2">
+      <div class="inline-3">
         <label>IVA Retenido (%)
           <select id="ivaRetenido">
             <option value="0">0%</option>
-            <option value="4">4%</option>
             <option value="7">7%</option>
-            <option value="10">10%</option>
+            <option value="15">15%</option>
+            <option value="19">19%</option>
+            <option value="21">21%</option>
           </select>
         </label>
         <label>IVA Aplicado (%)
           <select id="ivaAplicado">
+            <option value="0">0%</option>
             <option value="4">4%</option>
-            <option value="10">10%</option>
-            <option value="21" selected>21%</option>
+            <option value="10" selected>10%</option>
+            <option value="21">21%</option>
           </select>
         </label>
+        <label>Subtotal
+          <span id="subtotal" class="total-display">0,00 €</span>
+        </label>
       </div>
-      <div class="totales">
-        <div><span>Subtotal:</span> <span id="subtotal">0,00 €</span></div>
-        <div><span>IVA Retenido:</span> <span id="ivaRetenidoImporte">0,00 €</span></div>
-        <div><span>IVA:</span> <span id="ivaImporte">0,00 €</span></div>
-        <div class="total-line"><span>TOTAL A PAGAR:</span> <span id="total">0,00 €</span></div>
+      <div class="inline-3">
+        <label>IVA Retenido Importe
+          <span id="ivaRetenidoImporte" class="total-display">0,00 €</span>
+        </label>
+        <label>IVA Importe
+          <span id="ivaImporte" class="total-display">0,00 €</span>
+        </label>
+        <label>TOTAL
+          <span id="total" class="total-display total-highlight">0,00 €</span>
+        </label>
+      </div>
+      <label class="row-label">
+        <input type="checkbox" id="desplazamientoIncluido">
+        Incluir desplazamiento
+      </label>
+      <div id="desplazamientoFields" style="display:none;" class="inline-2">
+        <label>Km ida y vuelta <input type="number" id="kmDesplazamiento" step="1" placeholder="0"></label>
+        <label>€/km <input type="number" id="precioPorKm" step="0.01" placeholder="0.19"></label>
+      </div>
+      <label class="row-label">
+        <input type="checkbox" id="alojamientoIncluido">
+        Incluir alojamiento
+      </label>
+      <div id="alojamientoFields" style="display:none;">
+        <label>Coste alojamiento (€) <input type="number" id="costoAlojamiento" step="0.01" placeholder="0.00"></label>
       </div>
     </section>
 
     <!-- PAGO -->
     <section class="card">
-      <h2>OBSERVACIONES Y PAGO</h2>
-      <label>Observaciones Adicionales
-        <textarea id="observaciones" rows="2"></textarea>
+      <h2>DATOS DE PAGO</h2>
+      <label>Cuenta Bancaria Actual (IBAN)
+        <input type="text" id="cuentaActual" placeholder="ES00 0000 0000 0000 0000 0000" value="ES76 2100 5731 9402 0016 3635">
       </label>
-      <label style="margin-top:10px;">IBAN de la Cuenta
-        <input type="text" id="cuentaActual" placeholder="ES00 0000...">
-      </label>
-      <label>Cuentas Guardadas
+      <label>Seleccionar Cuenta Guardada
         <select id="cuentasGuardadas">
           <option value="">Seleccionar cuenta...</option>
         </select>
@@ -162,6 +167,14 @@
         <button id="btnGuardarCuenta" class="btn-blue">Guardar Cuenta</button>
         <button id="btnEliminarCuenta" class="btn-red">Eliminar Cuenta</button>
       </div>
+    </section>
+
+    <!-- OBSERVACIONES -->
+    <section class="card">
+      <h2>OBSERVACIONES</h2>
+      <label>Notas adicionales
+        <textarea id="observaciones" rows="2" placeholder="Observaciones opcionales..."></textarea>
+      </label>
     </section>
 
     <!-- HISTORIAL -->
