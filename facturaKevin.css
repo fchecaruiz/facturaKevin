@@ -128,8 +128,8 @@ button:active { transform: scale(0.97); }
 .btn-red    { background: #ef4444; color: white; }
 .btn-orange { background: #f97316; color: white; }
 .btn-purple { background: #8b5cf6; color: white; }
-.btn-slate  { background: #475569; color: white; }
-.btn-green  { background: #22c55e; color: white; }
+.btn-slate  { background: #46d43e; color: white; }
+.btn-green  { background: #22c55e; color: rgb(234, 234, 234); }
 
 button:hover { opacity: 0.88; }
 
