@@ -224,19 +224,33 @@ button:active {
 .btn-red    { background: #ef4444; color: white; }
 .btn-orange { background: #f97316; color: white; }
 .btn-purple { background: #8b5cf6; color: white; }
-.btn-slate  { background: #475569; color: white; }
+.btn-slate  { background: #5dbf06; color: white; }
+
+/* ===== BOTÓN NUEVA FACTURA ===== */
+.btn-nueva-factura {
+  width: 100%;
+}
+
+.btn-nueva-factura button {
+  width: 100%;
+  padding: 14px;
+  font-size: 0.9rem;
+}
 
 /* ===== GRUPO BOTONES CLIENTES ===== */
 .btn-group-clientes {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
 .btn-group-clientes button {
   width: 100%;
   padding: 14px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.2;
 }
 
 /* ===== BOTONES HISTORIAL ===== */
@@ -620,7 +634,6 @@ button:active {
     font-size: 0.72rem;
   }
 
-  /* 16px evita zoom automático en iOS Safari */
   input,
   select,
   textarea {
@@ -628,32 +641,31 @@ button:active {
     padding: 9px 10px;
   }
 
-  /* 2 columnas en móvil */
   .inline-2 {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
 
-  /* inline-3 pasa a 1 columna en móvil para que no se corten los textos */
   .inline-3 {
     grid-template-columns: 1fr;
     gap: 8px;
   }
 
-  /* Botones cliente: todos al 100% y apilados */
-  .btn-group-clientes {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .btn-group-clientes button {
-    width: 100%;
-    flex: none;
+  .btn-nueva-factura button {
     font-size: 0.85rem;
     padding: 13px;
   }
 
-  /* Botones acción abajo */
+  .btn-group-clientes {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .btn-group-clientes button {
+    font-size: 0.75rem;
+    padding: 12px 8px;
+  }
+
   .acciones {
     flex-direction: column;
     gap: 10px;
@@ -678,11 +690,7 @@ button:active {
   }
 
   .btn-group-clientes {
-    flex-wrap: wrap;
-  }
-
-  .btn-group-clientes button {
-    flex: 1 1 140px;
+    grid-template-columns: 1fr 1fr;
   }
 
   .acciones button {

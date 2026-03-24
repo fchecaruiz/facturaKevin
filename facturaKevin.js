@@ -407,7 +407,6 @@ async function duplicarFacturaHistorial(id) {
     if (!snap.exists) return;
     const f = snap.data() || {};
 
-    // Rellenar todos los campos con los datos de la factura original
     setValor("emisorNombre", f.emisor?.nombre);
     setValor("emisorNif", f.emisor?.nif);
     setValor("emisorDireccion", f.emisor?.direccion);
@@ -437,7 +436,6 @@ async function duplicarFacturaHistorial(id) {
     setValor("cuentaActual", f.pago?.iban);
     setValor("observaciones", f.pago?.observaciones);
 
-    // Nueva factura: limpiar ID, nuevo número y fecha de hoy
     setFacturaEditandoId(null);
     await asignarNumeroFactura();
     document.getElementById("fechaFactura").value = new Date().toISOString().slice(0, 10);
@@ -518,71 +516,103 @@ async function mostrarHistorial() {
 function prepararImpresion() {
   const logoSrc = document.querySelector(".logo-kevin")?.src || "logo-kevin.png";
   const area = document.getElementById("print-area");
+
   area.innerHTML = `
-    <div class="print-header">
-      <div>
-        <h1>KEVIN CHECA</h1>
-        <div style="font-size:10px; color:#475569; letter-spacing:1px;">FACTURA PROFESIONAL</div>
+    <div id="print-inner" style="
+      width: 210mm;
+      min-height: 297mm;
+      padding: 14mm 16mm;
+      box-sizing: border-box;
+      background: white;
+      color: #1e293b;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11px;
+    ">
+      <div class="print-header">
+        <div>
+          <h1>KEVIN CHECA</h1>
+          <div style="font-size:10px; color:#475569; letter-spacing:1px;">FACTURA PROFESIONAL</div>
+        </div>
+        <img src="${logoSrc}" class="print-logo" crossorigin="anonymous">
       </div>
-      <img src="${logoSrc}" class="print-logo" crossorigin="anonymous">
+
+      <div class="print-card">
+        <div class="print-section-title">DATOS DEL EMISOR</div>
+        <div class="print-grid-2">
+          <div><div class="print-label">NOMBRE</div><div class="print-value">${obtenerTexto("emisorNombre")}</div></div>
+          <div><div class="print-label">NIF</div><div class="print-value">${obtenerTexto("emisorNif")}</div></div>
+        </div>
+        <div class="print-grid-3">
+          <div><div class="print-label">DIRECCIÓN</div><div class="print-value">${obtenerTexto("emisorDireccion")}</div></div>
+          <div><div class="print-label">LOCALIDAD</div><div class="print-value">${obtenerTexto("emisorLocalidad")}</div></div>
+          <div><div class="print-label">PROVINCIA</div><div class="print-value">${obtenerTexto("emisorProvincia")}</div></div>
+        </div>
+        <div class="print-grid-3">
+          <div><div class="print-label">C.P.</div><div class="print-value">${obtenerTexto("emisorCP")}</div></div>
+          <div><div class="print-label">EMAIL</div><div class="print-value">${obtenerTexto("emisorEmail")}</div></div>
+          <div><div class="print-label">FECHA</div><div class="print-value">${obtenerTexto("fechaFactura")}</div></div>
+        </div>
+        <div>
+          <div class="print-label">Nº FACTURA</div>
+          <div class="print-value" style="font-size:14px; font-weight:800; color:#1e40af;">${obtenerTexto("numeroFactura")}</div>
+        </div>
+      </div>
+
+      <div class="print-card">
+        <div class="print-section-title">DATOS DEL CLIENTE</div>
+        <div class="print-grid-2">
+          <div><div class="print-label">CLIENTE</div><div class="print-value">${obtenerTexto("clienteNombre")}</div></div>
+          <div><div class="print-label">EMAIL</div><div class="print-value">${obtenerTexto("clienteEmail")}</div></div>
+        </div>
+        <div class="print-grid-3">
+          <div><div class="print-label">DIRECCIÓN</div><div class="print-value">${obtenerTexto("clienteDireccion")}</div></div>
+          <div><div class="print-label">C.P.</div><div class="print-value">${obtenerTexto("clienteCP")}</div></div>
+          <div><div class="print-label">LOCALIDAD</div><div class="print-value">${obtenerTexto("clienteLocalidad")}</div></div>
+        </div>
+        <div class="print-grid-2">
+          <div><div class="print-label">PROVINCIA</div><div class="print-value">${obtenerTexto("clienteProvincia")}</div></div>
+          <div><div class="print-label">DOC</div><div class="print-value">${obtenerTexto("clienteTipoDoc")}: ${obtenerTexto("clienteDoc")}</div></div>
+        </div>
+      </div>
+
+      <div class="print-card">
+        <div class="print-section-title">DETALLES DEL SERVICIO</div>
+        <div class="print-value" style="min-height:24px; white-space:pre-wrap; margin-bottom:8px;">${obtenerTexto("descripcionSesion")}</div>
+        <div class="print-grid-3">
+          <div><div class="print-label">CANTIDAD</div><div class="print-value">${obtenerNumero("cantidad")}</div></div>
+          <div><div class="print-label">PRECIO UNIDAD</div><div class="print-value">${formatoEuro(obtenerNumero("importe"))}</div></div>
+          <div><div class="print-label">DÍA SESIÓN</div><div class="print-value">${obtenerTexto("diaSesion")}</div></div>
+        </div>
+        <div class="print-totales">
+          <div class="print-total-row"><span>Subtotal:</span><span>${document.getElementById("subtotal").textContent}</span></div>
+          <div class="print-total-row"><span>IVA Retenido (${obtenerNumero("ivaRetenido")}%):</span><span>${document.getElementById("ivaRetenidoImporte").textContent}</span></div>
+          <div class="print-total-row"><span>IVA (${obtenerNumero("ivaAplicado")}%):</span><span>${document.getElementById("ivaImporte").textContent}</span></div>
+          <div class="print-total-row print-total-final"><span>TOTAL A PAGAR:</span><span>${document.getElementById("total").textContent}</span></div>
+        </div>
+      </div>
+
+      <div class="print-card">
+        <div class="print-section-title">DATOS DE PAGO</div>
+        <div class="print-label">IBAN / CUENTA BANCARIA</div>
+        <div class="print-value" style="font-weight:800; font-size:13px; letter-spacing:1px;">${obtenerTexto("cuentaActual")}</div>
+        ${obtenerTexto("observaciones") ? `
+          <div class="print-label" style="margin-top:8px;">OBSERVACIONES</div>
+          <div class="print-value">${obtenerTexto("observaciones")}</div>
+        ` : ""}
+      </div>
+
+      <div class="print-footer">¡GRACIAS POR TU CONFIANZA!</div>
     </div>
-    <div class="print-card">
-      <div class="print-section-title">DATOS DEL EMISOR</div>
-      <div class="print-grid-2">
-        <div><div class="print-label">NOMBRE</div><div class="print-value">${obtenerTexto("emisorNombre")}</div></div>
-        <div><div class="print-label">NIF</div><div class="print-value">${obtenerTexto("emisorNif")}</div></div>
-      </div>
-      <div class="print-grid-3">
-        <div><div class="print-label">DIRECCIÓN</div><div class="print-value">${obtenerTexto("emisorDireccion")}</div></div>
-        <div><div class="print-label">LOCALIDAD</div><div class="print-value">${obtenerTexto("emisorLocalidad")}</div></div>
-        <div><div class="print-label">PROVINCIA</div><div class="print-value">${obtenerTexto("emisorProvincia")}</div></div>
-      </div>
-      <div class="print-grid-3">
-        <div><div class="print-label">C.P.</div><div class="print-value">${obtenerTexto("emisorCP")}</div></div>
-        <div><div class="print-label">EMAIL</div><div class="print-value">${obtenerTexto("emisorEmail")}</div></div>
-        <div><div class="print-label">FECHA</div><div class="print-value">${obtenerTexto("fechaFactura")}</div></div>
-      </div>
-      <div><div class="print-label">Nº FACTURA</div><div class="print-value" style="font-size:14px; font-weight:800; color:#1e40af;">${obtenerTexto("numeroFactura")}</div></div>
-    </div>
-    <div class="print-card">
-      <div class="print-section-title">DATOS DEL CLIENTE</div>
-      <div class="print-grid-2">
-        <div><div class="print-label">CLIENTE</div><div class="print-value">${obtenerTexto("clienteNombre")}</div></div>
-        <div><div class="print-label">EMAIL</div><div class="print-value">${obtenerTexto("clienteEmail")}</div></div>
-      </div>
-      <div class="print-grid-3">
-        <div><div class="print-label">DIRECCIÓN</div><div class="print-value">${obtenerTexto("clienteDireccion")}</div></div>
-        <div><div class="print-label">C.P.</div><div class="print-value">${obtenerTexto("clienteCP")}</div></div>
-        <div><div class="print-label">LOCALIDAD</div><div class="print-value">${obtenerTexto("clienteLocalidad")}</div></div>
-      </div>
-      <div class="print-grid-2">
-        <div><div class="print-label">PROVINCIA</div><div class="print-value">${obtenerTexto("clienteProvincia")}</div></div>
-        <div><div class="print-label">DOC</div><div class="print-value">${obtenerTexto("clienteTipoDoc")}: ${obtenerTexto("clienteDoc")}</div></div>
-      </div>
-    </div>
-    <div class="print-card">
-      <div class="print-section-title">DETALLES DEL SERVICIO</div>
-      <div class="print-value" style="min-height:30px; white-space:pre-wrap; margin-bottom:8px;">${obtenerTexto("descripcionSesion")}</div>
-      <div class="print-grid-3">
-        <div><div class="print-label">CANTIDAD</div><div class="print-value">${obtenerNumero("cantidad")}</div></div>
-        <div><div class="print-label">PRECIO UNIDAD</div><div class="print-value">${formatoEuro(obtenerNumero("importe"))}</div></div>
-        <div><div class="print-label">DÍA SESIÓN</div><div class="print-value">${obtenerTexto("diaSesion")}</div></div>
-      </div>
-      <div class="print-totales">
-        <div class="print-total-row"><span>Subtotal:</span><span>${document.getElementById("subtotal").textContent}</span></div>
-        <div class="print-total-row"><span>IVA Retenido (${obtenerNumero("ivaRetenido")}%):</span><span>${document.getElementById("ivaRetenidoImporte").textContent}</span></div>
-        <div class="print-total-row"><span>IVA (${obtenerNumero("ivaAplicado")}%):</span><span>${document.getElementById("ivaImporte").textContent}</span></div>
-        <div class="print-total-row print-total-final"><span>TOTAL A PAGAR:</span><span>${document.getElementById("total").textContent}</span></div>
-      </div>
-    </div>
-    <div class="print-card">
-      <div class="print-section-title">DATOS DE PAGO</div>
-      <div class="print-label">IBAN / CUENTA BANCARIA</div>
-      <div class="print-value" style="font-weight:800; font-size:13px; letter-spacing:1px;">${obtenerTexto("cuentaActual")}</div>
-      ${obtenerTexto("observaciones") ? `<div class="print-label" style="margin-top:8px;">OBSERVACIONES</div><div class="print-value">${obtenerTexto("observaciones")}</div>` : ""}
-    </div>
-    <div class="print-footer">¡GRACIAS POR TU CONFIANZA!</div>
   `;
+
+  const inner = document.getElementById("print-inner");
+  const scaleX = window.innerWidth / inner.scrollWidth;
+  const scaleY = window.innerHeight / inner.scrollHeight;
+  const scale = Math.min(scaleX, scaleY, 1);
+  if (scale < 1) {
+    inner.style.transform = `scale(${scale})`;
+    inner.style.transformOrigin = "top left";
+  }
 
   document.activeElement?.blur();
   document.body.focus();
