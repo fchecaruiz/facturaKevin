@@ -1,4 +1,7 @@
-// 1. CONFIGURACIÓN DE FIREBASE
+// facturaKevin.js - Completo con Firebase, UI, multi-líneas y generación PDF (fallback si popup bloqueado)
+// Nota: TITULO siempre "FACTURA". Aviso de reserva eliminado del encabezado; si reserva marcada, se añade en OBSERVACIONES en rojo vivo.
+
+// ===== FIREBASE CONFIG =====
 const firebaseConfig = {
   apiKey: "AIzaSyDbDypH0jS5Oo-0FZgzh-nySHu1u2-oCwg",
   authDomain: "facturakevin-34ff5.firebaseapp.com",
@@ -41,7 +44,7 @@ function desbloquearNumeroFactura() {
   el.style.cursor = "text";
 }
 
-/* --- UTILIDADES --- */
+/* --- UTILIDADES UI --- */
 function showToast(message, type = "blue", duration = 2200) {
   const toast = document.getElementById("toast");
   if (!toast) return;
@@ -52,58 +55,33 @@ function showToast(message, type = "blue", duration = 2200) {
   toast._timeout = setTimeout(() => toast.classList.remove("show"), duration);
 }
 
-// confirmarToast (ya existía) - mantiene funcionalidad borrado, etc.
 function confirmarToast(mensaje) {
   return new Promise((resolve) => {
     const overlay = document.getElementById("confirmOverlay");
     const msg = document.getElementById("confirmMsg");
     const btnSi = document.getElementById("confirmSi");
     const btnNo = document.getElementById("confirmNo");
-    // Restaurar clases por defecto para usos generales (Si = rojo, No = azul)
     btnSi.className = "btn-red";
     btnNo.className = "btn-blue";
-
     msg.textContent = mensaje;
     overlay.classList.add("show");
-
-    btnSi.onclick = () => {
-      overlay.classList.remove("show");
-      resolve(true);
-    };
-    btnNo.onclick = () => {
-      overlay.classList.remove("show");
-      resolve(false);
-    };
+    btnSi.onclick = () => { overlay.classList.remove("show"); resolve(true); };
+    btnNo.onclick = () => { overlay.classList.remove("show"); resolve(false); };
   });
 }
 
-// prompt específico para "Añadir otra sesión?" (Sí azul, No rojo)
 function promptAddSession(mensaje = "¿Añadir otra sesión?") {
   return new Promise((resolve) => {
     const overlay = document.getElementById("confirmOverlay");
     const msg = document.getElementById("confirmMsg");
     const btnSi = document.getElementById("confirmSi");
     const btnNo = document.getElementById("confirmNo");
-    // Invertimos colores para esta pregunta concreta (Si = azul, No = rojo)
     btnSi.className = "btn-blue";
     btnNo.className = "btn-red";
-
     msg.textContent = mensaje;
     overlay.classList.add("show");
-
-    btnSi.onclick = () => {
-      overlay.classList.remove("show");
-      // Restauramos clases por defecto para siguientes usos
-      btnSi.className = "btn-red";
-      btnNo.className = "btn-blue";
-      resolve(true);
-    };
-    btnNo.onclick = () => {
-      overlay.classList.remove("show");
-      btnSi.className = "btn-red";
-      btnNo.className = "btn-blue";
-      resolve(false);
-    };
+    btnSi.onclick = () => { overlay.classList.remove("show"); btnSi.className = "btn-red"; btnNo.className = "btn-blue"; resolve(true); };
+    btnNo.onclick = () => { overlay.classList.remove("show"); btnSi.className = "btn-red"; btnNo.className = "btn-blue"; resolve(false); };
   });
 }
 
@@ -113,10 +91,12 @@ function formatoEuro(v) {
 
 function formatDateForPrint(d) {
   if (!d) return '';
-  // aceptamos YYYY-MM-DD o Date
   const dt = new Date(d);
   if (isNaN(dt)) return d;
-  return dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const day = dt.toLocaleDateString('es-ES', { day: '2-digit' });
+  const month = dt.toLocaleDateString('es-ES', { month: 'long' });
+  const year = dt.getFullYear();
+  return `${day}-${month}-${year}`;
 }
 
 function obtenerNumero(id) {
@@ -144,18 +124,15 @@ function setChecked(id, valor) {
   el.checked = !!valor;
 }
 
-/* --- SESSIONS MANAGEMENT (multi-line) --- */
+/* --- SESSIONS MANAGEMENT --- */
 let sessionContainer = null;
 let sessionCounter = 0;
 
 function createSessionLine(data = {}, focus = false) {
   sessionCounter++;
-  // If data.default === true, we use the existing inputs (they already exist in DOM)
   if (data && data.default) {
     const el = document.querySelector('.session-line[data-default="true"]');
-    if (el) {
-      el.dataset._tracked = "true";
-    }
+    if (el) el.dataset._tracked = "true";
     return el;
   }
 
@@ -164,7 +141,7 @@ function createSessionLine(data = {}, focus = false) {
   div.dataset._id = `session-${sessionCounter}`;
 
   div.innerHTML = `
-    <div class="inline-3">
+    <div class="inline-4">
       <label>Cantidad
         <select class="session-cantidad">
           <option value="1">1</option>
@@ -185,17 +162,18 @@ function createSessionLine(data = {}, focus = false) {
       <label>Día Sesión
         <input type="date" class="session-dia">
       </label>
+      <label>Sala / Evento
+        <input type="text" class="session-sala" placeholder="Ej: Pub, Discoteca...">
+      </label>
     </div>
     <button type="button" class="remove-session" title="Eliminar sesión">✖</button>
   `;
   if (data.cantidad) div.querySelector('.session-cantidad').value = data.cantidad;
   if (data.importe) div.querySelector('.session-importe').value = data.importe;
   if (data.dia) div.querySelector('.session-dia').value = data.dia;
+  if (data.sala) div.querySelector('.session-sala').value = data.sala;
 
-  const cantidadEl = div.querySelector('.session-cantidad');
-  const importeEl = div.querySelector('.session-importe');
-  const diaEl = div.querySelector('.session-dia');
-  const inputs = [cantidadEl, importeEl, diaEl];
+  const inputs = div.querySelectorAll('input, select');
   inputs.forEach(i => {
     i.addEventListener('input', () => {
       recalcularTotales();
@@ -209,49 +187,35 @@ function createSessionLine(data = {}, focus = false) {
   });
 
   sessionContainer.appendChild(div);
-
-  if (focus) {
-    setTimeout(() => {
-      const imp = div.querySelector('.session-importe');
-      if (imp) imp.focus();
-    }, 80);
-  }
-
+  if (focus) setTimeout(() => div.querySelector('.session-importe')?.focus(), 80);
   return div;
 }
 
 function getAllSessionLines() {
   const arr = [];
-
-  // default (original) line
   const defaultEl = document.querySelector('.session-line[data-default="true"]');
   if (defaultEl) {
     const cantidad = Number(document.getElementById('cantidad')?.value) || 0;
     const importe = Number(document.getElementById('importe')?.value) || 0;
     const dia = document.getElementById('diaSesion')?.value || '';
-    arr.push({ cantidad, importe, dia, _source: 'default' });
+    const sala = document.getElementById('sala')?.value || '';
+    arr.push({ cantidad, importe, dia, sala, _source: 'default' });
   }
-
-  // other dynamically added lines
-  (document.querySelectorAll('#sessionLines .session-line') || []).forEach(el => {
+  document.querySelectorAll('#sessionLines .session-line').forEach(el => {
     if (el.dataset.default === "true") return;
     const cantidad = Number(el.querySelector('.session-cantidad')?.value) || 0;
     const importe = Number(el.querySelector('.session-importe')?.value) || 0;
     const dia = el.querySelector('.session-dia')?.value || '';
-    arr.push({ cantidad, importe, dia, _source: el.dataset._id || '' });
+    const sala = el.querySelector('.session-sala')?.value || '';
+    arr.push({ cantidad, importe, dia, sala, _source: el.dataset._id || '' });
   });
-
   return arr;
 }
 
 async function checkAndPromptForNewLine(lineEl) {
   const lines = Array.from(document.querySelectorAll('#sessionLines .session-line'));
-  if (!lines.length) return;
-  const last = lines[lines.length - 1];
-  if (last !== lineEl) return;
-
-  let importe = 0;
-  let dia = '';
+  if (!lines.length || lines[lines.length - 1] !== lineEl) return;
+  let importe = 0, dia = '';
   if (lineEl.dataset.default === "true") {
     importe = Number(document.getElementById('importe')?.value) || 0;
     dia = document.getElementById('diaSesion')?.value || '';
@@ -259,15 +223,10 @@ async function checkAndPromptForNewLine(lineEl) {
     importe = Number(lineEl.querySelector('.session-importe')?.value) || 0;
     dia = lineEl.querySelector('.session-dia')?.value || '';
   }
-
   if (lineEl.dataset._prompted === "true") return;
-
   if (importe > 0 && dia) {
     lineEl.dataset._prompted = "true";
-    const quiere = await promptAddSession("¿Añadir otra sesión?");
-    if (quiere) {
-      createSessionLine({}, true);
-    }
+    if (await promptAddSession("¿Añadir otra sesión?")) createSessionLine({}, true);
   }
 }
 
@@ -275,31 +234,32 @@ async function checkAndPromptForNewLine(lineEl) {
 function recalcularTotales() {
   const sessions = getAllSessionLines();
   let base = 0;
-  sessions.forEach(s => {
-    const lineBase = (Number(s.cantidad) || 0) * (Number(s.importe) || 0);
-    base += lineBase;
-  });
+  sessions.forEach(s => base += (Number(s.cantidad) || 0) * (Number(s.importe) || 0));
 
   const despIncluido = document.getElementById("desplazamientoIncluido").checked;
   const alojaIncluido = document.getElementById("alojamientoIncluido").checked;
+  const esReserva = document.getElementById("reserva50").checked;
 
   document.getElementById("desplazamientoFields").style.display = despIncluido ? "grid" : "none";
   document.getElementById("alojamientoFields").style.display = alojaIncluido ? "block" : "none";
 
-  if (despIncluido) {
-    const km = obtenerNumero("kmDesplazamiento");
-    const pxkm = obtenerNumero("precioPorKm") || 0.19;
-    base += km * pxkm;
-  }
-  if (alojaIncluido) {
-    base += obtenerNumero("costoAlojamiento");
-  }
+  if (despIncluido) base += obtenerNumero("kmDesplazamiento") * (obtenerNumero("precioPorKm") || 0.19);
+  if (alojaIncluido) base += obtenerNumero("costoAlojamiento");
 
   const pctRetenido = obtenerNumero("ivaRetenido") / 100;
   const pctAplicado = obtenerNumero("ivaAplicado") / 100;
-  const retenido = base * pctRetenido;
-  const aplicado = base * pctAplicado;
-  const total = base - retenido + aplicado;
+  
+  let retenido = base * pctRetenido;
+  let aplicado = base * pctAplicado;
+  let total = base - retenido + aplicado;
+
+  // Lógica Reserva 50% (afecta cálculo solo si se marca)
+  if (esReserva) {
+    base = base / 2;
+    retenido = retenido / 2;
+    aplicado = aplicado / 2;
+    total = total / 2;
+  }
 
   document.getElementById("subtotal").textContent = formatoEuro(base);
   document.getElementById("ivaRetenidoImporte").textContent = "- " + formatoEuro(retenido);
@@ -307,17 +267,16 @@ function recalcularTotales() {
   document.getElementById("total").textContent = formatoEuro(total);
 }
 
-/* --- CLIENTES FIREBASE --- */
+/* --- FIRESTORE: CLIENTES & CUENTAS --- */
 function escucharClientes() {
   db.collection("clientes").orderBy("nombre").onSnapshot(snapshot => {
     const sel = document.getElementById("clientesGuardados");
+    if (!sel) return;
     const valorActual = sel.value;
     sel.innerHTML = '<option value="">Seleccionar cliente...</option>';
     snapshot.forEach(doc => {
-      const d = doc.data();
       const opt = document.createElement("option");
-      opt.value = doc.id;
-      opt.textContent = d.nombre;
+      opt.value = doc.id; opt.textContent = doc.data().nombre;
       sel.appendChild(opt);
     });
     if (valorActual) sel.value = valorActual;
@@ -325,20 +284,15 @@ function escucharClientes() {
 }
 
 function rellenarCliente() {
-  const sel = document.getElementById("clientesGuardados");
-  const id = sel.value;
+  const id = document.getElementById("clientesGuardados").value;
   if (!id) return;
   db.collection("clientes").doc(id).get().then(doc => {
     if (!doc.exists) return;
     const d = doc.data();
-    setValor("clienteNombre", d.nombre);
-    setValor("clienteEmail", d.email);
-    setValor("clienteDireccion", d.direccion);
-    setValor("clienteCP", d.cp);
-    setValor("clienteLocalidad", d.localidad);
-    setValor("clienteProvincia", d.provincia);
-    setValor("clienteTelefono", d.telefono);
-    setValor("clienteTipoDoc", d.tipoDoc);
+    setValor("clienteNombre", d.nombre); setValor("clienteEmail", d.email);
+    setValor("clienteDireccion", d.direccion); setValor("clienteCP", d.cp);
+    setValor("clienteLocalidad", d.localidad); setValor("clienteProvincia", d.provincia);
+    setValor("clienteTelefono", d.telefono); setValor("clienteTipoDoc", d.tipoDoc);
     setValor("clienteDoc", d.doc);
   });
 }
@@ -346,58 +300,38 @@ function rellenarCliente() {
 async function guardarCliente() {
   const nombre = obtenerTexto("clienteNombre").trim();
   if (!nombre) { showToast("Escribe el nombre del cliente", "red"); return; }
-
   const datos = {
-    nombre,
-    email: obtenerTexto("clienteEmail"),
-    direccion: obtenerTexto("clienteDireccion"),
-    cp: obtenerTexto("clienteCP"),
-    localidad: obtenerTexto("clienteLocalidad"),
-    provincia: obtenerTexto("clienteProvincia"),
-    telefono: obtenerTexto("clienteTelefono"),
-    tipoDoc: obtenerTexto("clienteTipoDoc"),
-    doc: obtenerTexto("clienteDoc"),
+    nombre, email: obtenerTexto("clienteEmail"), direccion: obtenerTexto("clienteDireccion"),
+    cp: obtenerTexto("clienteCP"), localidad: obtenerTexto("clienteLocalidad"),
+    provincia: obtenerTexto("clienteProvincia"), telefono: obtenerTexto("clienteTelefono"),
+    tipoDoc: obtenerTexto("clienteTipoDoc"), doc: obtenerTexto("clienteDoc")
   };
-
   const sel = document.getElementById("clientesGuardados");
-  const idExistente = sel.value;
-
   try {
-    if (idExistente) {
-      await db.collection("clientes").doc(idExistente).set(datos);
-      showToast("Cliente actualizado ✅");
-    } else {
-      const ref = await db.collection("clientes").add(datos);
-      sel.value = ref.id;
-      showToast("Cliente guardado ✅");
-    }
-  } catch (e) {
-    showToast("Error al guardar cliente", "red");
-  }
+    if (sel && sel.value) { await db.collection("clientes").doc(sel.value).set(datos); showToast("Cliente actualizado ✅"); }
+    else { const ref = await db.collection("clientes").add(datos); if (sel) sel.value = ref.id; showToast("Cliente guardado ✅"); }
+  } catch (e) { showToast("Error al guardar cliente", "red"); }
 }
 
 async function eliminarCliente() {
   const sel = document.getElementById("clientesGuardados");
-  const id = sel.value;
-  if (!id) { showToast("Selecciona un cliente", "red"); return; }
-  const ok = await confirmarToast("¿Eliminar este cliente?");
-  if (!ok) return;
-  await db.collection("clientes").doc(id).delete();
+  if (!sel || !sel.value) { showToast("Selecciona un cliente", "red"); return; }
+  if (!await confirmarToast("¿Eliminar este cliente?")) return;
+  await db.collection("clientes").doc(sel.value).delete();
   sel.value = "";
   ["clienteNombre", "clienteEmail", "clienteDireccion", "clienteCP", "clienteLocalidad", "clienteProvincia", "clienteTelefono", "clienteDoc"].forEach(i => setValor(i, ""));
   showToast("Cliente eliminado 🗑️", "red");
 }
 
-/* --- CUENTAS FIREBASE --- */
 function escucharCuentas() {
   db.collection("cuentas").onSnapshot(snapshot => {
     const sel = document.getElementById("cuentasGuardadas");
+    if (!sel) return;
     const valorActual = sel.value;
     sel.innerHTML = '<option value="">Seleccionar cuenta...</option>';
     snapshot.forEach(doc => {
       const opt = document.createElement("option");
-      opt.value = doc.data().iban;
-      opt.textContent = doc.data().iban;
+      opt.value = doc.data().iban; opt.textContent = doc.data().iban;
       sel.appendChild(opt);
     });
     if (valorActual) sel.value = valorActual;
@@ -414,598 +348,407 @@ async function guardarCuenta() {
 async function eliminarCuenta() {
   const iban = obtenerTexto("cuentaActual").trim();
   if (!iban) { showToast("Selecciona una cuenta", "red"); return; }
-  const ok = await confirmarToast("¿Eliminar esta cuenta?");
-  if (!ok) return;
+  if (!await confirmarToast("¿Eliminar esta cuenta?")) return;
   const snap = await db.collection("cuentas").where("iban", "==", iban).get();
   snap.forEach(doc => doc.ref.delete());
   showToast("Cuenta eliminada 🗑️", "red");
 }
 
-/* --- NÚMERO DE FACTURA --- */
+/* --- NUMERACIÓN DE FACTURAS --- */
 async function asignarNumeroFactura() {
-  // Busca la última factura; si no existe ninguna, por petición tuya iniciamos en 6-<año>
-  const snap = await db.collection("facturas").orderBy("numero", "desc").limit(1).get();
-  let siguiente = 6; // por defecto cuando no hay facturas previas (tal y como pediste)
-  if (!snap.empty) {
-    const ultimo = snap.docs[0].data().numero || "0";
-    const num = parseInt(ultimo.toString().split("-")[0]);
-    if (!isNaN(num)) siguiente = num + 1;
+  try {
+    const snap = await db.collection("facturas").orderBy("timestamp", "desc").limit(1).get();
+    let siguiente = 6;
+    if (!snap.empty) {
+      const ultimo = snap.docs[0].data().numero || "0";
+      const numStr = String(ultimo).split("-")[0];
+      const num = parseInt(numStr);
+      if (!isNaN(num)) siguiente = num + 1;
+    }
+    setValor("numeroFactura", `${siguiente}-${new Date().getFullYear()}`);
+    bloquearNumeroFactura();
+  } catch (e) {
+    setValor("numeroFactura", `6-${new Date().getFullYear()}`);
+    bloquearNumeroFactura();
   }
-  const año = new Date().getFullYear();
-  setValor("numeroFactura", `${siguiente}-${año}`);
-  bloquearNumeroFactura();
 }
 
-/* --- HISTORIAL FIREBASE --- */
+/* --- HISTORIAL DE FACTURAS --- */
 async function guardarOActualizarHistorial() {
   const numero = obtenerTexto("numeroFactura").trim();
   const cliente = obtenerTexto("clienteNombre").trim();
-  const total = document.getElementById("total").textContent;
+  if (!numero || !cliente) { showToast("Completa nº factura y cliente", "red"); return; }
 
-  if (!numero || !cliente) {
-    showToast("Completa nº factura y cliente", "red");
-    return;
-  }
-
-  const sessions = getAllSessionLines().map(s => ({
-    cantidad: s.cantidad,
-    importe: s.importe,
-    dia: s.dia
-  }));
-
+  const sessions = getAllSessionLines().map(s => ({ cantidad: s.cantidad, importe: s.importe, dia: s.dia, sala: s.sala }));
   const datos = {
-    numero,
-    cliente,
-    total,
-    fecha: obtenerTexto("fechaFactura"),
-    nif: obtenerTexto("emisorNif"),
-    email: obtenerTexto("clienteEmail"),
-    direccion: obtenerTexto("clienteDireccion"),
-    cp: obtenerTexto("clienteCP"),
-    localidad: obtenerTexto("clienteLocalidad"),
-    provincia: obtenerTexto("clienteProvincia"),
-    telefono: obtenerTexto("clienteTelefono"),
-    tipoDoc: obtenerTexto("clienteTipoDoc"),
-    doc: obtenerTexto("clienteDoc"),
-    descripcion: obtenerTexto("descripcionSesion"),
-    cantidad: obtenerNumero("cantidad"),
-    importe: obtenerNumero("importe"),
-    diaSesion: obtenerTexto("diaSesion"),
-    ivaRetenido: obtenerNumero("ivaRetenido"),
-    ivaAplicado: obtenerNumero("ivaAplicado"),
-    desplazamiento: document.getElementById("desplazamientoIncluido").checked,
-    km: obtenerNumero("kmDesplazamiento"),
-    precioPorKm: obtenerNumero("precioPorKm"),
+    numero, cliente, total: document.getElementById("total").textContent,
+    fecha: obtenerTexto("fechaFactura"), nif: obtenerTexto("emisorNif"),
+    email: obtenerTexto("clienteEmail"), direccion: obtenerTexto("clienteDireccion"),
+    cp: obtenerTexto("clienteCP"), localidad: obtenerTexto("clienteLocalidad"),
+    provincia: obtenerTexto("clienteProvincia"), telefono: obtenerTexto("clienteTelefono"),
+    tipoDoc: obtenerTexto("clienteTipoDoc"), doc: obtenerTexto("clienteDoc"),
+    descripcion: obtenerTexto("descripcionSesion"), ivaRetenido: obtenerNumero("ivaRetenido"),
+    ivaAplicado: obtenerNumero("ivaAplicado"), desplazamiento: document.getElementById("desplazamientoIncluido").checked,
+    reserva50: document.getElementById("reserva50").checked,
+    km: obtenerNumero("kmDesplazamiento"), precioPorKm: obtenerNumero("precioPorKm"),
     alojamiento: document.getElementById("alojamientoIncluido").checked,
-    costoAlojamiento: obtenerNumero("costoAlojamiento"),
-    cuenta: obtenerTexto("cuentaActual"),
-    observaciones: obtenerTexto("observaciones"),
-    sessions,
+    costoAlojamiento: obtenerNumero("costoAlojamiento"), cuenta: obtenerTexto("cuentaActual"),
+    observaciones: obtenerTexto("observaciones"), sessions,
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   };
 
-  const editandoId = getFacturaEditandoId();
   try {
-    if (editandoId) {
-      await db.collection("facturas").doc(editandoId).set(datos);
-      showToast("Factura actualizada ✅");
-    } else {
-      await db.collection("facturas").add(datos);
-      showToast("Factura guardada ✅");
-      await asignarNumeroFactura();
-    }
-  } catch (e) {
-    showToast("Error al guardar factura", "red");
-  }
+    const editId = getFacturaEditandoId();
+    if (editId) { await db.collection("facturas").doc(editId).set(datos); showToast("Factura actualizada ✅"); }
+    else { await db.collection("facturas").add(datos); showToast("Factura guardada ✅"); await asignarNumeroFactura(); }
+  } catch (e) { showToast("Error al guardar factura", "red"); }
 }
 
 async function mostrarHistorial() {
-  document.getElementById("modalHistorial").classList.add("show");
+  const modal = document.getElementById("modalHistorial");
+  if (!modal) return;
+  modal.classList.add("show");
   const lista = document.getElementById("listaHistorial");
   lista.innerHTML = "<p style='color:#94a3b8;text-align:center;padding:20px;'>Cargando historial...</p>";
-  try {
-    const snap = await db.collection("facturas").orderBy("timestamp", "desc").get();
-    if (snap.empty) {
-      lista.innerHTML = "<p style='color:#94a3b8;text-align:center;padding:20px;'>No hay facturas guardadas</p>";
-      return;
-    }
-    lista.innerHTML = "";
-    snap.forEach(doc => {
-      const d = doc.data();
-      const item = document.createElement("div");
-      item.className = "historial-item";
-      item.innerHTML = `
-        <div class="historial-info">
-          <strong>Factura ${d.numero} — ${d.cliente}</strong>
-          <span class="historial-total">${d.total}</span>
-        </div>
-        <div class="historial-btns">
-          <button class="btn-cargar-factura" title="Ver/Cargar">👁️</button>
-          <button class="btn-duplicar-factura" title="Duplicar">📋</button>
-          <button class="btn-borrar-factura" title="Borrar">🗑️</button>
-        </div>
-      `;
-
-      item.querySelector(".btn-cargar-factura").onclick = () => {
-        cargarFactura(doc.id, d);
-        document.getElementById("modalHistorial").classList.remove("show");
-      };
-      item.querySelector(".btn-duplicar-factura").onclick = () => {
-        cargarFactura(null, d);
-        document.getElementById("modalHistorial").classList.remove("show");
-      };
-      item.querySelector(".btn-borrar-factura").onclick = async () => {
-        const ok = await confirmarToast(`¿Borrar factura ${d.numero}?`);
-        if (ok) {
-          await db.collection("facturas").doc(doc.id).delete();
-          showToast("Factura borrada 🗑️", "red");
-          mostrarHistorial();
-        }
-      };
-
-      lista.appendChild(item);
-    });
-  } catch (e) {
-    lista.innerHTML = "<p style='text-align:center; color:#ef4444;padding:20px;'>Error al cargar historial</p>";
-  }
+  const snap = await db.collection("facturas").orderBy("timestamp", "desc").get();
+  if (snap.empty) { lista.innerHTML = "<p style='color:#94a3b8;text-align:center;padding:20px;'>No hay facturas</p>"; return; }
+  lista.innerHTML = "";
+  snap.forEach(doc => {
+    const d = doc.data();
+    const item = document.createElement("div");
+    item.className = "historial-item";
+    item.innerHTML = `
+      <div class="historial-info"><strong>Factura ${d.numero} — ${d.cliente}</strong><span class="historial-total">${d.total}</span></div>
+      <div class="historial-btns">
+        <button class="btn-cargar-factura" title="Cargar">👁️</button>
+        <button class="btn-duplicar-factura" title="Duplicar">📋</button>
+        <button class="btn-borrar-factura btn-cerrar" title="Borrar">✖</button>
+      </div>`;
+    item.querySelector(".btn-cargar-factura").onclick = () => { cargarFactura(doc.id, d); modal.classList.remove("show"); };
+    item.querySelector(".btn-duplicar-factura").onclick = () => { cargarFactura(null, d); modal.classList.remove("show"); };
+    item.querySelector(".btn-borrar-factura").onclick = async () => {
+      if (await confirmarToast(`¿Borrar factura ${d.numero}?`)) {
+        await db.collection("facturas").doc(doc.id).delete();
+        mostrarHistorial();
+      }
+    };
+    lista.appendChild(item);
+  });
 }
 
 function cargarFactura(id, d) {
   setFacturaEditandoId(id);
   if (id) bloquearNumeroFactura(); else desbloquearNumeroFactura();
-
-  setValor("numeroFactura", d.numero);
-  setValor("fechaFactura", d.fecha || new Date().toISOString().slice(0,10));
-  setValor("clienteNombre", d.cliente);
-  setValor("clienteEmail", d.email);
-  setValor("clienteDireccion", d.direccion);
-  setValor("clienteCP", d.cp);
-  setValor("clienteLocalidad", d.localidad);
-  setValor("clienteProvincia", d.provincia);
-  setValor("clienteTelefono", d.telefono);
-  setValor("clienteTipoDoc", d.tipoDoc);
-  setValor("clienteDoc", d.doc);
-  setValor("descripcionSesion", d.descripcion || "");
+  setValor("numeroFactura", d.numero); setValor("fechaFactura", d.fecha || new Date().toISOString().slice(0,10));
+  setValor("clienteNombre", d.cliente); setValor("clienteEmail", d.email);
+  setValor("clienteDireccion", d.direccion); setValor("clienteCP", d.cp);
+  setValor("clienteLocalidad", d.localidad); setValor("clienteProvincia", d.provincia);
+  setValor("clienteTelefono", d.telefono); setValor("clienteTipoDoc", d.tipoDoc);
+  setValor("clienteDoc", d.doc); setValor("descripcionSesion", d.descripcion || "");
   setChecked("desplazamientoIncluido", d.desplazamiento || false);
-  setValor("kmDesplazamiento", d.km || "");
-  setValor("precioPorKm", d.precioPorKm || "");
+  setChecked("reserva50", d.reserva50 || false);
+  setValor("kmDesplazamiento", d.km || ""); setValor("precioPorKm", d.precioPorKm || "");
   setChecked("alojamientoIncluido", d.alojamiento || false);
   setValor("costoAlojamiento", d.costoAlojamiento || "");
-  setValor("cuentaActual", d.cuenta || "");
-  setValor("observaciones", d.observaciones || "");
+  setValor("cuentaActual", d.cuenta || ""); setValor("observaciones", d.observaciones || "");
 
+  // reconstruir líneas
   if (sessionContainer) sessionContainer.innerHTML = '';
-  // recreate default line (use original inputs)
   const defaultWrapper = document.createElement('div');
   defaultWrapper.className = 'session-line';
   defaultWrapper.dataset.default = "true";
-  defaultWrapper.innerHTML = `
-    <div class="inline-3">
-      <label>Cantidad
-        <select id="cantidad">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5</option>
-          <option value="6">6</option>
-          <option value="7">7</option>
-          <option value="8">8</option>
-          <option value="9">9</option>
-          <option value="10">10</option>
-        </select>
-      </label>
-      <label>Importe Unitario (€)
-        <input type="number" id="importe" step="0.01" placeholder="0.00">
-      </label>
-      <label>Día Sesión
-        <input type="date" id="diaSesion">
-      </label>
-    </div>
-  `;
+  defaultWrapper.innerHTML = `<div class="inline-4">
+    <label>Cantidad<select id="cantidad"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+    <label>Importe Unitario (€)<input type="number" id="importe" step="0.01" placeholder="0.00"></label>
+    <label>Día Sesión<input type="date" id="diaSesion"></label>
+    <label>Sala / Evento<input type="text" id="sala" placeholder="Ej: Pub, Discoteca..."></label>
+  </div>`;
   sessionContainer.appendChild(defaultWrapper);
 
-  if (d.sessions && Array.isArray(d.sessions) && d.sessions.length) {
+  if (d.sessions && d.sessions.length) {
     const first = d.sessions[0];
-    setTimeout(() => {
-      setValor('cantidad', first.cantidad || 1);
-      setValor('importe', first.importe || '');
-      setValor('diaSesion', first.dia || '');
-    }, 30);
-    for (let i = 1; i < d.sessions.length; i++) {
-      createSessionLine({ cantidad: d.sessions[i].cantidad, importe: d.sessions[i].importe, dia: d.sessions[i].dia });
-    }
-  } else {
-    setTimeout(() => {
-      setValor('cantidad', d.cantidad || 1);
-      setValor('importe', d.importe || '');
-      setValor('diaSesion', d.diaSesion || '');
-    }, 30);
+    setTimeout(() => { setValor('cantidad', first.cantidad || 1); setValor('importe', first.importe || ''); setValor('diaSesion', first.dia || ''); setValor('sala', first.sala || ''); }, 30);
+    for (let i = 1; i < d.sessions.length; i++) createSessionLine(d.sessions[i]);
   }
-
-  setValor("ivaRetenido", d.ivaRetenido || 0);
-  setValor("ivaAplicado", d.ivaAplicado || 10);
+  setValor("ivaRetenido", d.ivaRetenido || 0); setValor("ivaAplicado", d.ivaAplicado || 10);
   recalcularTotales();
-  showToast(id ? "Factura cargada 👁️" : "Factura duplicada 📋");
-
   const seccion = document.getElementById("seccionCliente");
-  if (seccion) {
-    seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(() => {
-      document.getElementById("clienteNombre").focus();
-    }, 600);
+  if (seccion) { seccion.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => document.getElementById("clienteNombre").focus(), 600); }
+}
+
+/* --- IMPRESIÓN PDF (A4) - sin aviso superior; TITULO siempre 'FACTURA' --- */
+function prepararImpresion() {
+  try {
+    const esReserva = document.getElementById("reserva50").checked;
+    const titulo = "FACTURA"; // siempre FACTURA, sin texto reserva arriba
+
+    const sessions = getAllSessionLines();
+    let sessionsHtml = '';
+    sessions.forEach(s => {
+      sessionsHtml += `<tr>
+        <td style="padding:6px;border:1px solid #e6e6e6;">${formatDateForPrint(s.dia)}</td>
+        <td style="padding:6px;border:1px solid #e6e6e6;">${s.sala || ''}</td>
+        <td style="padding:6px;border:1px solid #e6e6e6;text-align:right;">${s.cantidad}</td>
+        <td style="padding:6px;border:1px solid #e6e6e6;text-align:right;">${formatoEuro(s.importe)}</td>
+        <td style="padding:6px;border:1px solid #e6e6e6;text-align:right;">${formatoEuro(s.cantidad * s.importe)}</td>
+      </tr>`;
+    });
+
+    // Observaciones: añadir texto de reserva en rojo vivo si está marcada
+    const observacionesOriginal = obtenerTexto("observaciones");
+    const observacionesReserva = esReserva ? `<span style="color:#ff0000; font-weight:bold;">⚠️ FACTURA DE RESERVA - 50% ADELANTO.</span> ` : "";
+    const observacionesFinal = observacionesReserva + observacionesOriginal;
+
+    const contenido = `
+      <div class="print-header">
+        <div>
+          <h1 style="margin:0;font-size:22px;color:#1e40af;letter-spacing:1px;">KEVIN CHECA</h1>
+          <div style="font-weight:800;margin-top:4px;font-size:16px;color:#1e293b;">${titulo}</div>
+        </div>
+        <img src="${document.querySelector(".logo-kevin")?.src || ''}" class="print-logo" alt="logo">
+      </div>
+
+      <div class="print-card">
+        <div class="print-section-title">DATOS DEL EMISOR</div>
+        <div class="print-grid-3">
+          <div><div class="print-label">NOMBRE</div><div class="print-value">${obtenerTexto("emisorNombre")}</div></div>
+          <div><div class="print-label">NIF</div><div class="print-value">${obtenerTexto("emisorNif")}</div></div>
+          <div><div class="print-label">C.P.</div><div class="print-value">${obtenerTexto("emisorCP")}</div></div>
+        </div>
+        <div style="margin-top:8px; display:flex; gap:20px;">
+          <div><div class="print-label">Nº FACTURA</div><div class="print-value" style="font-weight:800; color:#1e40af;">${obtenerTexto("numeroFactura")}</div></div>
+          <div><div class="print-label">FECHA EMISIÓN</div><div class="print-value">${formatDateForPrint(obtenerTexto("fechaFactura"))}</div></div>
+        </div>
+      </div>
+
+      <div class="print-card">
+        <div class="print-section-title">DATOS DEL CLIENTE</div>
+        <div class="print-grid-2">
+          <div><div class="print-label">NOMBRE / RAZÓN SOCIAL</div><div class="print-value" style="font-weight:700;">${obtenerTexto("clienteNombre")}</div></div>
+          <div><div class="print-label">EMAIL</div><div class="print-value">${obtenerTexto("clienteEmail")}</div></div>
+        </div>
+        <div style="margin-top:8px;"><div class="print-label">DIRECCIÓN Y LOCALIDAD</div><div class="print-value">${obtenerTexto("clienteDireccion")} - ${obtenerTexto("clienteLocalidad")} (${obtenerTexto("clienteCP")})</div></div>
+        <div style="margin-top:8px;"><div class="print-label">${obtenerTexto("clienteTipoDoc")}</div><div class="print-value">${obtenerTexto("clienteDoc")}</div></div>
+      </div>
+
+      <div class="print-card">
+        <div class="print-section-title">DETALLES DEL SERVICIO</div>
+        <div class="print-value" style="white-space:pre-wrap; margin-bottom:10px; font-style:italic; color:#475569;">${obtenerTexto("descripcionSesion")}</div>
+        <table style="width:100%; border-collapse: collapse; font-size:11px;">
+          <thead><tr style="background:#f1f5f9;">
+            <th style="text-align:left;padding:8px;border:1px solid #cbd5e1;">DÍA</th>
+            <th style="text-align:left;padding:8px;border:1px solid #cbd5e1;">SALA / EVENTO</th>
+            <th style="text-align:right;padding:8px;border:1px solid #cbd5e1;">CANT.</th>
+            <th style="text-align:right;padding:8px;border:1px solid #cbd5e1;">PRECIO U.</th>
+            <th style="text-align:right;padding:8px;border:1px solid #cbd5e1;">TOTAL LÍNEA</th>
+          </tr></thead>
+          <tbody>${sessionsHtml}</tbody>
+        </table>
+
+        <div class="print-totales" style="margin-top:10px;">
+          <div class="print-total-row"><span>Subtotal:</span><span>${document.getElementById("subtotal").textContent}</span></div>
+          <div class="print-total-row"><span>IVA Retenido (${obtenerNumero("ivaRetenido")}%):</span><span>${document.getElementById("ivaRetenidoImporte").textContent}</span></div>
+          <div class="print-total-row"><span>IVA (${obtenerNumero("ivaAplicado")}%):</span><span>${document.getElementById("ivaImporte").textContent}</span></div>
+          <div class="print-total-row print-total-final" style="margin-top:6px;"><span>TOTAL A PAGAR:</span><span>${document.getElementById("total").textContent}</span></div>
+        </div>
+      </div>
+
+      <div class="print-card">
+        <div class="print-section-title">DATOS DE PAGO</div>
+        <div class="print-label">IBAN</div>
+        <div class="print-value" style="font-weight:800;">${obtenerTexto("cuentaActual")}</div>
+        <div style="margin-top:8px;" class="print-label">OBSERVACIONES</div>
+        <div class="print-value">${observacionesFinal}</div>
+      </div>
+
+      <div class="print-footer">¡GRACIAS POR TU CONFIANZA!</div>
+    `;
+
+    const html = `
+      <html>
+        <head>
+          <title>Factura ${obtenerTexto("numeroFactura")}</title>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <style>
+            @page { size: A4; margin: 0; }
+            html, body { width: 210mm; height: 297mm; margin: 0; padding: 0; background: white; }
+            body { display:flex; align-items:flex-start; justify-content:center; }
+            .factura-wrapper {
+              width: 210mm;
+              height: 297mm;
+              padding: 12mm;
+              box-sizing: border-box;
+              background: #ffffff;
+              color: #1e293b;
+              font-family: Arial, Helvetica, sans-serif;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .print-header { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #3b82f6; padding-bottom:8px; margin-bottom:10px; }
+            .print-logo { width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid #3b82f6; }
+            .print-card { background:#f8fafc; border:1px solid #e2e8f0; padding:10px; margin-bottom:8px; border-radius:6px; }
+            .print-section-title { font-size:10px; font-weight:800; color:#1e40af; margin-bottom:6px; }
+            .print-grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+            .print-grid-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; }
+            .print-label { font-size:9px; color:#64748b; text-transform:uppercase; }
+            .print-value { font-size:12px; margin-top:2px; color:#0f172a; }
+            .print-totales { background:#f1f5f9; padding:8px; border-radius:4px; margin-top:8px; }
+            .print-total-row { display:flex; justify-content:space-between; font-size:11px; padding:2px 0; color:#475569; }
+            .print-total-final { border-top:2px solid #3b82f6; font-size:13px; font-weight:800; color:#f97316; padding-top:6px; margin-top:6px; }
+            table { width:100%; border-collapse:collapse; font-size:12px; }
+            th, td { border:1px solid #e6e6e6; padding:6px; }
+            .print-footer { text-align:center; font-size:10px; color:#64748b; margin-top:8px; border-top:1px solid #e2e8f0; padding-top:8px; }
+            @media print {
+              html,body { width:210mm; height:297mm; }
+              .factura-wrapper { box-shadow:none; margin:0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="factura-wrapper">${contenido}</div>
+          <script>
+            window.addEventListener('load', function() {
+              setTimeout(function() {
+                try { window.print(); } catch (e) { console.warn(e); }
+              }, 400);
+            });
+            window.onafterprint = function() { setTimeout(function(){ window.close(); }, 300); };
+          <\/script>
+        </body>
+      </html>
+    `;
+
+    // Intentar abrir ventana normal
+    let ventana = null;
+    try {
+      ventana = window.open("", "_blank");
+    } catch (e) {
+      ventana = null;
+    }
+
+    if (ventana && ventana.document) {
+      // Escribimos directamente
+      ventana.document.open();
+      ventana.document.write(html);
+      ventana.document.close();
+      showToast("Abriendo vista de impresión...", "blue", 3000);
+    } else {
+      // Fallback si popup bloqueado: crear blob y abrir su URL
+      try {
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        showToast("Popup bloqueado. Abriendo en nueva pestaña (fallback).", "red", 4000);
+      } catch (e) {
+        showToast("No se pudo abrir la vista de impresión. Revisa bloqueo de popups.", "red", 5000);
+        console.error("Error al abrir fallback de impresión:", e);
+      }
+    }
+  } catch (err) {
+    console.error("Error prepararImpresion:", err);
+    showToast("Error al preparar impresión. Revisa consola.", "red", 4000);
   }
 }
 
-/* --- IMPRESIÓN PDF --- */
-function prepararImpresion() {
-  const logoSrc = document.querySelector(".logo-kevin")?.src || "logo-kevin.png";
-
-  const sessions = getAllSessionLines();
-  let sessionsHtml = '';
-  sessions.forEach(s => {
-    const cantidad = s.cantidad || 0;
-    const importe = (Number(s.importe) || 0).toFixed(2) + ' €';
-    const importeTotal = ((Number(s.cantidad)||0) * (Number(s.importe)||0)).toFixed(2) + ' €';
-    const dia = s.dia || '';
-    sessionsHtml += `
-      <tr>
-        <td style="padding:8px;border:1px solid #e6e6e6;">${dia}</td>
-        <td style="padding:8px;border:1px solid #e6e6e6;text-align:right;">${cantidad}</td>
-        <td style="padding:8px;border:1px solid #e6e6e6;text-align:right;">${importe}</td>
-        <td style="padding:8px;border:1px solid #e6e6e6;text-align:right;">${importeTotal}</td>
-      </tr>
-    `;
-  });
-
-  const fechaParaImprimir = formatDateForPrint(obtenerTexto("fechaFactura"));
-
-  const contenido = `
-    <div class="print-header">
-      <div>
-        <h1>KEVIN CHECA</h1>
-      </div>
-      <img src="${logoSrc}" class="print-logo" crossorigin="anonymous">
-    </div>
-
-    <div class="print-card">
-      <div class="print-section-title">DATOS DEL EMISOR</div>
-      <div class="print-grid-3">
-        <div><div class="print-label">NOMBRE</div><div class="print-value">${obtenerTexto("emisorNombre")}</div></div>
-        <div><div class="print-label">NIF</div><div class="print-value">${obtenerTexto("emisorNif")}</div></div>
-        <div><div class="print-label">EMAIL</div><div class="print-value">${obtenerTexto("emisorEmail")}</div></div>
-      </div>
-      <div class="print-grid-3">
-        <div><div class="print-label">DIRECCIÓN</div><div class="print-value">${obtenerTexto("emisorDireccion")}</div></div>
-        <div><div class="print-label">LOCALIDAD</div><div class="print-value">${obtenerTexto("emisorLocalidad")}</div></div>
-        <div><div class="print-label">PROVINCIA</div><div class="print-value">${obtenerTexto("emisorProvincia")}</div></div>
-      </div>
-      <div class="print-grid-2">
-        <div><div class="print-label">C.P.</div><div class="print-value">${obtenerTexto("emisorCP")}</div></div>
-        <div><div class="print-label">FECHA</div><div class="print-value">${fechaParaImprimir}</div></div>
-      </div>
-      <div style="margin-top:6px;">
-        <div class="print-label">Nº FACTURA</div>
-        <div class="print-value" style="font-weight:800; font-size:13px; letter-spacing:1px;">${obtenerTexto("numeroFactura")}</div>
-      </div>
-    </div>
-
-    <div class="print-card">
-      <div class="print-section-title">DATOS DEL CLIENTE</div>
-      <div class="print-grid-2">
-        <div><div class="print-label">NOMBRE</div><div class="print-value">${obtenerTexto("clienteNombre")}</div></div>
-        <div><div class="print-label">EMAIL</div><div class="print-value">${obtenerTexto("clienteEmail")}</div></div>
-      </div>
-      <div class="print-grid-3">
-        <div><div class="print-label">DIRECCIÓN</div><div class="print-value">${obtenerTexto("clienteDireccion")}</div></div>
-        <div><div class="print-label">C.P.</div><div class="print-value">${obtenerTexto("clienteCP")}</div></div>
-        <div><div class="print-label">LOCALIDAD</div><div class="print-value">${obtenerTexto("clienteLocalidad")}</div></div>
-      </div>
-      <div class="print-grid-2">
-        <div><div class="print-label">PROVINCIA</div><div class="print-value">${obtenerTexto("clienteProvincia")}</div></div>
-        <div><div class="print-label">${obtenerTexto("clienteTipoDoc")}</div><div class="print-value">${obtenerTexto("clienteDoc")}</div></div>
-      </div>
-    </div>
-
-    <div class="print-card">
-      <div class="print-section-title">DETALLES DEL SERVICIO</div>
-      <div class="print-value" style="min-height:24px; white-space:pre-wrap; margin-bottom:8px;">${obtenerTexto("descripcionSesion")}</div>
-
-      <table style="width:100%; border-collapse: collapse;">
-        <thead>
-          <tr>
-            <th style="text-align:left;padding:8px;border:1px solid #e6e6e6;">DÍA</th>
-            <th style="padding:8px;border:1px solid #e6e6e6;">CANT.</th>
-            <th style="padding:8px;border:1px solid #e6e6e6;">P.U.</th>
-            <th style="padding:8px;border:1px solid #e6e6e6;">IMPORTE</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${sessionsHtml}
-        </tbody>
-      </table>
-
-      <div class="print-totales">
-        <div class="print-total-row"><span>Subtotal:</span><span>${document.getElementById("subtotal").textContent}</span></div>
-        <div class="print-total-row"><span>IVA Retenido (${obtenerNumero("ivaRetenido")}%):</span><span>${document.getElementById("ivaRetenidoImporte").textContent}</span></div>
-        <div class="print-total-row"><span>IVA (${obtenerNumero("ivaAplicado")}%):</span><span>${document.getElementById("ivaImporte").textContent}</span></div>
-        <div class="print-total-row print-total-final"><span>TOTAL A PAGAR:</span><span>${document.getElementById("total").textContent}</span></div>
-      </div>
-    </div>
-
-    <div class="print-card">
-      <div class="print-section-title">DATOS DE PAGO</div>
-      <div class="print-label">IBAN / CUENTA BANCARIA</div>
-      <div class="print-value" style="font-weight:800; font-size:13px; letter-spacing:1px;">${obtenerTexto("cuentaActual")}</div>
-      ${obtenerTexto("observaciones") ? `
-        <div class="print-label" style="margin-top:8px;">OBSERVACIONES</div>
-        <div class="print-value">${obtenerTexto("observaciones")}</div>
-      ` : ""}
-    </div>
-
-    <div class="print-footer">¡GRACIAS POR TU CONFIANZA!</div>
-  `;
-
-  const ventana = window.open("", "_blank");
-  ventana.document.write(`<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Factura ${obtenerTexto("numeroFactura")}</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    @page { size: A4 portrait; margin: 0; }
-    html, body {
-      width: 100%;
-      min-height: 100vh;
-      background: #f1f5f9;
-      font-family: 'Segoe UI', Arial, sans-serif;
-      font-size: 13px;
-      color: #1e293b;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .btn-imprimir {
-      display: block;
-      width: 210mm;
-      margin: 0 auto 16px auto;
-      padding: 14px;
-      background: #f97316;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      letter-spacing: 1px;
-    }
-    .btn-imprimir:hover { opacity: 0.88; }
-    @media print {
-      body { padding: 0; background: white; }
-      .btn-imprimir { display: none !important; }
-      .factura-wrapper {
-        width: 210mm;
-        min-height: 297mm;
-        margin: 0;
-        padding: 14mm 16mm;
-        box-shadow: none;
-        border-radius: 0;
-      }
-    }
-    @media screen {
-      body { padding: 20px 0; }
-      .factura-wrapper {
-        box-shadow: 0 4px 32px rgba(0,0,0,0.15);
-        border-radius: 8px;
-      }
-    }
-    .factura-wrapper {
-      width: 210mm;
-      min-height: 297mm;
-      margin: 0 auto;
-      background: white;
-      padding: 14mm 16mm;
-      box-sizing: border-box;
-    }
-    @media screen and (max-width: 230mm) {
-      .factura-wrapper { width: 100%; padding: 16px; min-height: unset; }
-      .btn-imprimir { width: 100%; }
-    }
-    .print-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
-      padding-bottom: 10px;
-      border-bottom: 3px solid #3b82f6;
-    }
-    .print-header h1 { font-size: 22px; color: #1e40af; letter-spacing: 3px; }
-    .print-header > div > div { font-size: 10px; color: #475569; letter-spacing: 1px; margin-top: 2px; }
-    .print-logo {
-      width: 64px; height: 64px;
-      border-radius: 50%; object-fit: cover;
-      border: 2px solid #3b82f6;
-    }
-    .print-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 10px;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .print-section-title {
-      font-size: 8px; font-weight: 800; color: #1e40af;
-      letter-spacing: 2px; text-transform: uppercase;
-      border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 4px; margin-bottom: 8px;
-    }
-    .print-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
-    .print-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 6px; }
-    .print-label { font-size: 7px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
-    .print-value { font-size: 11px; color: #1e293b; font-weight: 500; margin-top: 2px; }
-    .print-totales {
-      background: #f1f5f9;
-      border-radius: 6px; padding: 8px 12px; margin-top: 8px;
-      -webkit-print-color-adjust: exact; print-color-adjust: exact;
-    }
-    .print-total-row { display: flex; justify-content: space-between; font-size: 10px; color: #475569; padding: 2px 0; }
-    .print-total-final {
-      border-top: 2px solid #3b82f6; margin-top: 4px; padding-top: 4px;
-      font-size: 14px !important; font-weight: 800; color: #f97316 !important;
-    }
-    .print-total-final span { color: #f97316 !important; }
-    .print-footer {
-      text-align: center; font-size: 9px; color: #64748b;
-      margin-top: 10px; padding-top: 8px;
-      border-top: 1px solid #e2e8f0;
-      letter-spacing: 2px; text-transform: uppercase;
-    }
-  </style>
-</head>
-<body>
-  <div class="factura-wrapper">
-    ${contenido}
-  </div>
-  <script>
-    window.onload = function() { window.print(); }
-  <\/script>
-</body>
-</html>`);
-  ventana.document.close();
-}
-
-/* --- INICIALIZACIÓN --- */
+/* --- INICIALIZACIÓN Y EVENTOS --- */
 window.addEventListener("DOMContentLoaded", async () => {
-  // referencias que requieren DOM
   sessionContainer = document.getElementById("sessionLines");
-
   document.getElementById("fechaFactura").value = new Date().toISOString().slice(0, 10);
-  escucharClientes();
-  escucharCuentas();
+
+  // listeners Firestore
+  escucharClientes(); escucharCuentas();
   await asignarNumeroFactura();
 
-  // botón editar número: toggle readOnly
-  const btnEditar = document.getElementById("btnEditarNumero");
-  if (btnEditar) {
-    btnEditar.addEventListener('click', () => {
+  // btn editar número
+  const btnEditarNumero = document.getElementById("btnEditarNumero");
+  if (btnEditarNumero) {
+    btnEditarNumero.onclick = () => {
       const num = document.getElementById("numeroFactura");
-      if (!num) return;
-      if (num.readOnly) {
-        desbloquearNumeroFactura();
-        showToast("Ahora puedes editar el número manualmente", "blue", 1800);
-        num.focus();
-      } else {
-        bloquearNumeroFactura();
-        showToast("Número bloqueado", "blue", 1200);
-      }
-    });
+      if (num.readOnly) { desbloquearNumeroFactura(); num.focus(); } else bloquearNumeroFactura();
+    };
   }
 
-  // Initialize session container and default line
-  if (!sessionContainer) return;
+  // crear línea por defecto si no existe
+  if (!document.querySelector('.session-line[data-default="true"]')) {
+    const defaultWrapper = document.createElement('div');
+    defaultWrapper.className = 'session-line';
+    defaultWrapper.dataset.default = "true";
+    defaultWrapper.innerHTML = `<div class="inline-4">
+      <label>Cantidad<select id="cantidad"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+      <label>Importe Unitario (€)<input type="number" id="importe" step="0.01" placeholder="0.00"></label>
+      <label>Día Sesión<input type="date" id="diaSesion"></label>
+      <label>Sala / Evento<input type="text" id="sala" placeholder="Ej: Pub, Discoteca..."></label>
+    </div>`;
+    sessionContainer.appendChild(defaultWrapper);
+  }
 
-  // bind manual add session button
-  document.getElementById('btnAgregarSesionManual').addEventListener('click', () => {
-    createSessionLine({}, true);
+  // eventos principales
+  const btnAgregar = document.getElementById('btnAgregarSesionManual');
+  if (btnAgregar) btnAgregar.onclick = () => createSessionLine({}, true);
+
+  ['cantidad','importe','diaSesion','sala'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', recalcularTotales);
   });
 
-  // attach events to default line inputs
-  const defaultLine = document.querySelector('.session-line[data-default="true"]');
-  if (defaultLine) {
-    ['cantidad','importe','diaSesion'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.addEventListener('input', () => {
-          recalcularTotales();
-          checkAndPromptForNewLine(defaultLine);
-        });
-      }
-    });
-  }
-
-  // Botón fijo de Nueva Factura con desplazamiento suave
   document.getElementById("btnNuevaFacturaFixed").onclick = async () => {
-    setFacturaEditandoId(null);
-    desbloquearNumeroFactura();
-    document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor'])").forEach(i => i.value = "");
-    document.getElementById("cantidad").selectedIndex = 0;
-    document.getElementById("ivaRetenido").selectedIndex = 0;
-    document.getElementById("ivaAplicado").selectedIndex = 2;
-    document.getElementById("desplazamientoIncluido").checked = false;
-    document.getElementById("alojamientoIncluido").checked = false;
-
-    // Reset session lines to single default
-    if (sessionContainer) {
-      sessionContainer.innerHTML = '';
+    setFacturaEditandoId(null); desbloquearNumeroFactura();
+    // limpiar inputs no emisores
+    document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor'])").forEach(i => {
+      if (i.type === 'checkbox') i.checked = false;
+      else i.value = "";
+    });
+    // reset sesiones
+    if (sessionContainer) { sessionContainer.innerHTML = ''; 
       const defaultWrapper = document.createElement('div');
-      defaultWrapper.className = 'session-line';
-      defaultWrapper.dataset.default = "true";
-      defaultWrapper.innerHTML = `
-        <div class="inline-3">
-          <label>Cantidad
-            <select id="cantidad">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="7">7</option>
-              <option value="8">8</option>
-              <option value="9">9</option>
-              <option value="10">10</option>
-            </select>
-          </label>
-          <label>Importe Unitario (€)
-            <input type="number" id="importe" step="0.01" placeholder="0.00">
-          </label>
-          <label>Día Sesión
-            <input type="date" id="diaSesion">
-          </label>
-        </div>
-      `;
+      defaultWrapper.className = 'session-line'; defaultWrapper.dataset.default = "true";
+      defaultWrapper.innerHTML = `<div class="inline-4">
+        <label>Cantidad<select id="cantidad"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+        <label>Importe Unitario (€)<input type="number" id="importe" step="0.01" placeholder="0.00"></label>
+        <label>Día Sesión<input type="date" id="diaSesion"></label>
+        <label>Sala / Evento<input type="text" id="sala" placeholder="Ej: Pub, Discoteca..."></label>
+      </div>`;
       sessionContainer.appendChild(defaultWrapper);
-      ['cantidad','importe','diaSesion'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('input', () => {
-          recalcularTotales();
-          checkAndPromptForNewLine(defaultWrapper);
-        });
-      });
     }
-
-    recalcularTotales();
-    await asignarNumeroFactura();
-
-    showToast("Nueva factura lista 🆕");
-
+    recalcularTotales(); await asignarNumeroFactura();
     const seccion = document.getElementById("seccionCliente");
-    if (seccion) {
-      seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setTimeout(() => document.getElementById("clienteNombre").focus(), 600);
-    }
+    if (seccion) { seccion.scrollIntoView({ behavior: 'smooth' }); setTimeout(() => document.getElementById("clienteNombre").focus(), 600); }
   };
 
-  document.getElementById("btnGuardarFactura").onclick = async () => {
-    await guardarOActualizarHistorial();
-  };
+  const btnGuardarFactura = document.getElementById("btnGuardarFactura");
+  if (btnGuardarFactura) btnGuardarFactura.onclick = guardarOActualizarHistorial;
 
-  document.getElementById("btnPDF").onclick = prepararImpresion;
-  document.getElementById("btnGuardarCliente").onclick = guardarCliente;
-  document.getElementById("btnEliminarCliente").onclick = eliminarCliente;
-  document.getElementById("clientesGuardados").onchange = rellenarCliente;
-  document.getElementById("btnGuardarCuenta").onclick = guardarCuenta;
-  document.getElementById("btnEliminarCuenta").onclick = eliminarCuenta;
-  document.getElementById("cuentasGuardadas").onchange = (e) => setValor("cuentaActual", e.target.value);
-  document.getElementById("btnVerHistorial").onclick = mostrarHistorial;
-  document.getElementById("btnCerrarHistorial").onclick = () => document.getElementById("modalHistorial").classList.remove("show");
+  const btnPDF = document.getElementById("btnPDF");
+  if (btnPDF) btnPDF.onclick = prepararImpresion;
+
+  const btnGuardarCliente = document.getElementById("btnGuardarCliente");
+  if (btnGuardarCliente) btnGuardarCliente.onclick = guardarCliente;
+
+  const btnEliminarCliente = document.getElementById("btnEliminarCliente");
+  if (btnEliminarCliente) btnEliminarCliente.onclick = eliminarCliente;
+
+  const selClientes = document.getElementById("clientesGuardados");
+  if (selClientes) selClientes.onchange = rellenarCliente;
+
+  const btnGuardarCuenta = document.getElementById("btnGuardarCuenta");
+  if (btnGuardarCuenta) btnGuardarCuenta.onclick = guardarCuenta;
+
+  const btnEliminarCuenta = document.getElementById("btnEliminarCuenta");
+  if (btnEliminarCuenta) btnEliminarCuenta.onclick = eliminarCuenta;
+
+  const selCuentas = document.getElementById("cuentasGuardadas");
+  if (selCuentas) selCuentas.onchange = (e) => setValor("cuentaActual", e.target.value);
+
+  const btnVerHistorial = document.getElementById("btnVerHistorial");
+  if (btnVerHistorial) btnVerHistorial.onclick = mostrarHistorial;
+
+  const btnCerrarHistorial = document.getElementById("btnCerrarHistorial");
+  if (btnCerrarHistorial) btnCerrarHistorial.onclick = () => document.getElementById("modalHistorial").classList.remove("show");
+
   document.getElementById("desplazamientoIncluido").onchange = recalcularTotales;
   document.getElementById("alojamientoIncluido").onchange = recalcularTotales;
-
-  // Attach recalculation for global selects/inputs that aren't part of session lines
+  document.getElementById("reserva50").onchange = recalcularTotales;
   ['ivaRetenido','ivaAplicado','kmDesplazamiento','precioPorKm','costoAlojamiento'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', recalcularTotales);

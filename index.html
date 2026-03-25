@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Generador de Facturas - Kevin Checa</title>
-  <link rel="stylesheet" href="facturaKevin.css">
+  <link rel="stylesheet" href="facturaKevin.css" />
 </head>
 <body tabindex="-1">
 
   <div class="app-container">
     <header class="header-main">
-      <img src="logo-kevin.png" alt="Logo Kevin" class="logo-kevin">
+      <img src="logo-kevin.png" alt="Logo Kevin" class="logo-kevin" />
       <h1>KEVIN CHECA</h1>
     </header>
 
@@ -18,28 +18,27 @@
     <section class="card">
       <h2>MIS DATOS (EMISOR)</h2>
       <div class="inline-3">
-        <label>Nombre / Razón Social <input type="text" id="emisorNombre" value="KEVIN CHECA"></label>
-        <label>NIF <input type="text" id="emisorNif" value="21155464-H"></label>
-        <label>Dirección <input type="text" id="emisorDireccion" value="C/ Reyes Católicos nº 1"></label>
+        <label>Nombre / Razón Social <input type="text" id="emisorNombre" value="KEVIN CHECA" /></label>
+        <label>NIF <input type="text" id="emisorNif" value="21155464-H" /></label>
+        <label>Dirección <input type="text" id="emisorDireccion" value="C/ Reyes Católicos nº 1" /></label>
       </div>
       <div class="inline-3">
-        <label>Localidad <input type="text" id="emisorLocalidad" value="Olvega"></label>
-        <label>Provincia <input type="text" id="emisorProvincia" value="Soria"></label>
-        <label>C.P. <input type="text" id="emisorCP" value="42110"></label>
+        <label>Localidad <input type="text" id="emisorLocalidad" value="Olvega" /></label>
+        <label>Provincia <input type="text" id="emisorProvincia" value="Soria" /></label>
+        <label>C.P. <input type="text" id="emisorCP" value="42110" /></label>
       </div>
 
-      <!-- Nº FACTURA y FECHA (misma línea) -->
       <div class="inline-2">
         <label style="display:flex;flex-direction:column;gap:8px;">
           Nº Factura
           <div class="input-with-btn">
-            <input type="text" id="numeroFactura" placeholder="Ej: 6-2026">
+            <input type="text" id="numeroFactura" placeholder="Ej: 6-2026" />
             <button id="btnEditarNumero" type="button" class="edit-num-btn" title="Editar número">✎</button>
           </div>
         </label>
 
         <label>Fecha Factura
-          <input type="date" id="fechaFactura">
+          <input type="date" id="fechaFactura" />
         </label>
       </div>
     </section>
@@ -53,17 +52,17 @@
         </select>
       </label>
       <div class="inline-2">
-        <label>Nombre / Razón Social <input type="text" id="clienteNombre"></label>
-        <label>Email <input type="email" id="clienteEmail"></label>
+        <label>Nombre / Razón Social <input type="text" id="clienteNombre" /></label>
+        <label>Email <input type="email" id="clienteEmail" /></label>
       </div>
       <div class="inline-3">
-        <label>Dirección <input type="text" id="clienteDireccion"></label>
-        <label>C.P. <input type="text" id="clienteCP"></label>
-        <label>Localidad <input type="text" id="clienteLocalidad"></label>
+        <label>Dirección <input type="text" id="clienteDireccion" /></label>
+        <label>C.P. <input type="text" id="clienteCP" /></label>
+        <label>Localidad <input type="text" id="clienteLocalidad" /></label>
       </div>
       <div class="inline-2">
-        <label>Provincia <input type="text" id="clienteProvincia"></label>
-        <label>Teléfono <input type="text" id="clienteTelefono"></label>
+        <label>Provincia <input type="text" id="clienteProvincia" /></label>
+        <label>Teléfono <input type="text" id="clienteTelefono" /></label>
       </div>
       <div class="inline-2">
         <label>Tipo Doc.
@@ -73,7 +72,7 @@
             <option value="CIF">CIF</option>
           </select>
         </label>
-        <label>Nº Documento <input type="text" id="clienteDoc"></label>
+        <label>Nº Documento <input type="text" id="clienteDoc" /></label>
       </div>
       <div class="btn-group-clientes">
         <button id="btnGuardarCliente" class="btn-blue">Guardar/Actualizar Cliente</button>
@@ -89,10 +88,9 @@
         <textarea id="descripcionSesion" rows="2"></textarea>
       </label>
 
-      <!-- CONTENEDOR DE LÍNEAS DE SESIÓN (la primera línea usa los IDs originales) -->
       <div id="sessionLines">
         <div class="session-line" data-default="true">
-          <div class="inline-3">
+          <div class="inline-4">
             <label>Cantidad
               <select id="cantidad">
                 <option value="1">1</option>
@@ -108,14 +106,16 @@
               </select>
             </label>
             <label>Importe Unitario (€)
-              <input type="number" id="importe" step="0.01" placeholder="0.00">
+              <input type="number" id="importe" step="0.01" placeholder="0.00" />
             </label>
             <label>Día Sesión
-              <input type="date" id="diaSesion">
+              <input type="date" id="diaSesion" />
+            </label>
+            <label>Sala / Evento
+              <input type="text" id="sala" placeholder="Ej: Pub, Discoteca..." />
             </label>
           </div>
         </div>
-        <!-- nuevas líneas serán añadidas aquí dinámicamente -->
       </div>
 
       <div class="line-actions" style="display:flex; gap:8px; align-items:center;">
@@ -145,6 +145,7 @@
           <span id="subtotal" class="total-display">0,00 €</span>
         </label>
       </div>
+
       <div class="inline-3">
         <label>IVA Retenido Importe
           <span id="ivaRetenidoImporte" class="total-display">0,00 €</span>
@@ -156,20 +157,29 @@
           <span id="total" class="total-display total-highlight">0,00 €</span>
         </label>
       </div>
-      <label class="row-label">
-        <input type="checkbox" id="desplazamientoIncluido">
-        Incluir desplazamiento
-      </label>
-      <div id="desplazamientoFields" style="display:none;" class="inline-2">
-        <label>Km ida y vuelta <input type="number" id="kmDesplazamiento" step="1" placeholder="0"></label>
-        <label>€/km <input type="number" id="precioPorKm" step="0.01" placeholder="0.19"></label>
+
+      <div class="inline-2" style="margin-top:10px;">
+        <label class="row-label">
+          <input type="checkbox" id="desplazamientoIncluido" />
+          Incluir desplazamiento
+        </label>
+        <label class="row-label" style="color: var(--warning);">
+          <input type="checkbox" id="reserva50" />
+          RESERVA 50% (Adelanto)
+        </label>
       </div>
+
+      <div id="desplazamientoFields" style="display:none;" class="inline-2">
+        <label>Km ida y vuelta <input type="number" id="kmDesplazamiento" step="1" placeholder="0" /></label>
+        <label>€/km <input type="number" id="precioPorKm" step="0.01" placeholder="0.19" /></label>
+      </div>
+
       <label class="row-label">
-        <input type="checkbox" id="alojamientoIncluido">
+        <input type="checkbox" id="alojamientoIncluido" />
         Incluir alojamiento
       </label>
       <div id="alojamientoFields" style="display:none;">
-        <label>Coste alojamiento (€) <input type="number" id="costoAlojamiento" step="0.01" placeholder="0.00"></label>
+        <label>Coste alojamiento (€) <input type="number" id="costoAlojamiento" step="0.01" placeholder="0.00" /></label>
       </div>
     </section>
 
@@ -177,7 +187,7 @@
     <section class="card">
       <h2>DATOS DE PAGO</h2>
       <label>Cuenta Bancaria Actual (IBAN)
-        <input type="text" id="cuentaActual" placeholder="ES00 0000 0000 0000 0000 0000" value="ES76 2100 5731 9402 0016 3635">
+        <input type="text" id="cuentaActual" placeholder="ES00 0000 0000 0000 0000 0000" value="ES76 2100 5731 9402 0016 3635" />
       </label>
       <label>Seleccionar Cuenta Guardada
         <select id="cuentasGuardadas">
@@ -236,7 +246,7 @@
 
   <div id="toast" class="toast"></div>
   <div id="print-area"></div>
-  <input type="hidden" id="facturaEditandoIdHidden" value="">
+  <input type="hidden" id="facturaEditandoIdHidden" value="" />
 
   <!-- FIREBASE -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>

@@ -117,6 +117,7 @@ textarea { resize: vertical; min-height: 80px; }
 /* ===== GRIDS ===== */
 .inline-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .inline-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.inline-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
 
 /* ===== INPUT WITH BUTTON (numero editable) ===== */
 .input-with-btn { display:flex; gap:8px; align-items:center; }
@@ -266,7 +267,6 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
   display: flex; justify-content: space-between; align-items: center;
 }
 
-
 .btn-cerrar { 
   background: var(--danger) !important; 
   color: white !important; 
@@ -321,7 +321,6 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
   flex-shrink: 0; 
 }
 
-/* Botones de acción del historial con tus colores originales */
 .btn-cargar-factura, .btn-duplicar-factura, .btn-borrar-factura {
   width: 42px !important; 
   height: 42px !important;
@@ -376,109 +375,13 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
 /* ===== PRINT / PDF ===== */
 #print-area { display: none; }
 
-@media print {
-  @page {
-    size: A4 portrait;
-    margin: 0;
-  }
-
-  html, body {
-    width: 210mm;
-    height: 297mm;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: white !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    overflow: hidden;
-  }
-
-  body > *:not(#print-area) { display: none !important; }
-
-  #print-area {
-    display: block !important;
-    position: absolute !important;
-    top: 0 !important; left: 0 !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    overflow: hidden !important;
-    background: white !important;
-    padding: 12mm 14mm !important;
-    box-sizing: border-box !important;
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 11px;
-    color: #1e293b;
-  }
-
-  .print-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 3px solid #3b82f6;
-  }
-  .print-header h1 { font-size: 20px; color: #1e40af; letter-spacing: 3px; margin: 0; }
-
-  .print-logo {
-    width: 60px; height: 60px;
-    border-radius: 50%; object-fit: cover;
-    border: 2px solid #3b82f6;
-    display: block !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .print-card {
-    background: #f8fafc !important;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .print-section-title {
-    font-size: 8px; font-weight: 800; color: #1e40af;
-    letter-spacing: 2px; text-transform: uppercase;
-    border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 3px; margin-bottom: 6px;
-  }
-
-  .print-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 4px; }
-  .print-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 4px; }
-
-  .print-label { font-size: 7px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
-  .print-value { font-size: 10px; color: #1e293b; font-weight: 500; margin-top: 1px; }
-
-  .print-totales {
-    background: #f1f5f9 !important;
-    border-radius: 4px; padding: 6px 10px; margin-top: 6px;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
-  }
-  .print-total-row { display: flex; justify-content: space-between; font-size: 9px; color: #475569; padding: 1px 0; }
-  .print-total-final {
-    border-top: 2px solid #3b82f6; margin-top: 3px; padding-top: 3px;
-    font-size: 12px !important; font-weight: 800; color: #f97316 !important;
-  }
-  .print-total-final span { color: #f97316 !important; }
-
-  .print-footer {
-    text-align: center; font-size: 9px; color: #64748b;
-    margin-top: 8px; padding-top: 6px;
-    border-top: 1px solid #e2e8f0;
-    letter-spacing: 2px; text-transform: uppercase;
-  }
-}
-
 /* ===== RESPONSIVE MÓVIL ===== */
 @media (max-width: 600px) {
   body { padding: 12px; }
   .header-main { padding: 20px; flex-direction: column; text-align: center; }
   .header-main h1 { font-size: 1.5rem; }
   
-  .inline-2, .inline-3 { grid-template-columns: 1fr; gap: 12px; }
+  .inline-2, .inline-3, .inline-4 { grid-template-columns: 1fr; gap: 12px; }
   
   .btn-group-clientes {
     display: grid;
@@ -486,7 +389,6 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
     gap: 10px;
   }
 
-  /* Mejora de accesibilidad: Botones más grandes en móvil */
   button { padding: 16px; width: 100%; }
   
   .acciones {
@@ -497,7 +399,6 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
   }
   .acciones button { font-size: 0.75rem; padding: 14px 6px; }
 
-  /* Historial responsive */
   .historial-item {
     flex-direction: column;
     align-items: flex-start;
@@ -507,15 +408,4 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
     justify-content: flex-end;
     margin-top: 10px;
   }
-  .btn-nueva-factura button {
-    font-size: 1rem;
-    padding: 20px;
-  }
-}
-
-/* ===== RESPONSIVE TABLET ===== */
-@media (min-width: 601px) and (max-width: 768px) {
-  .inline-3 { grid-template-columns: 1fr 1fr; }
-  .btn-group-clientes { flex-wrap: wrap; }
-  .btn-group-clientes button { flex: 1 1 140px; }
 }
