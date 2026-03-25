@@ -47,20 +47,20 @@ body {
   border: 1px solid var(--border);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
 }
-.header-main h1 { 
-  font-size: 2rem; 
+.header-main h1 {
+  font-size: 2rem;
   font-weight: 800;
-  color: var(--text-main); 
+  color: var(--text-main);
   letter-spacing: 4px;
   background: linear-gradient(to right, #fff, var(--accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-.logo-kevin { 
-  width: 70px; 
-  height: 70px; 
-  border-radius: 50%; 
-  object-fit: cover; 
+.logo-kevin {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
   border: 3px solid var(--accent);
   box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
 }
@@ -107,8 +107,8 @@ input, select, textarea {
   width: 100%;
   transition: all 0.2s ease;
 }
-input:focus, select:focus, textarea:focus { 
-  outline: none; 
+input:focus, select:focus, textarea:focus {
+  outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
@@ -192,9 +192,9 @@ textarea { resize: vertical; min-height: 80px; }
   font-weight: 700;
   text-align: center;
 }
-.total-highlight { 
-  color: var(--warning) !important; 
-  font-size: 1.4rem !important; 
+.total-highlight {
+  color: var(--warning) !important;
+  font-size: 1.4rem !important;
   border-color: var(--warning);
   background: rgba(245, 158, 11, 0.05);
 }
@@ -267,19 +267,20 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
   display: flex; justify-content: space-between; align-items: center;
 }
 
-.btn-cerrar { 
-  background: var(--danger) !important; 
-  color: white !important; 
-  padding: 8px 16px; 
+.btn-cerrar {
+  background: var(--danger) !important;
+  color: white !important;
+  padding: 8px 16px;
+  border-radius: 8px;
 }
 
 /* ===== ITEM HISTORIAL (CON COLORES ORIGINALES) ===== */
-.lista-historial { 
-  overflow-y: auto; 
-  padding: 16px; 
-  display: flex; 
-  flex-direction: column; 
-  gap: 12px; 
+.lista-historial {
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .historial-item {
@@ -287,24 +288,24 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
   border: 1px solid #334155;
   border-radius: 12px;
   padding: 14px;
-  display: flex; 
-  align-items: center; 
+  display: flex;
+  align-items: center;
   gap: 12px;
   transition: all 0.2s;
 }
 
-.historial-info { 
-  flex: 1; 
-  min-width: 0; 
+.historial-info {
+  flex: 1;
+  min-width: 0;
 }
 
-.historial-info strong { 
-  display: block; 
-  color: #e2e8f0; 
-  font-size: 0.95rem; 
-  white-space: nowrap; 
-  overflow: hidden; 
-  text-overflow: ellipsis; 
+.historial-info strong {
+  display: block;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .historial-total {
@@ -315,23 +316,23 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
   margin-top: 4px;
 }
 
-.historial-btns { 
-  display: flex; 
-  gap: 8px; 
-  flex-shrink: 0; 
+.historial-btns {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .btn-cargar-factura, .btn-duplicar-factura, .btn-borrar-factura {
-  width: 42px !important; 
+  width: 42px !important;
   height: 42px !important;
-  border-radius: 10px !important; 
+  border-radius: 10px !important;
   border: none !important;
   cursor: pointer !important;
-  display: flex !important; 
-  align-items: center !important; 
+  display: flex !important;
+  align-items: center !important;
   justify-content: center !important;
-  transition: all 0.2s !important; 
-  font-size: 1.2rem !important; 
+  transition: all 0.2s !important;
+  font-size: 1.2rem !important;
   padding: 0 !important;
   color: white !important;
 }
@@ -341,7 +342,7 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
 .btn-borrar-factura   { background: #991b1b !important; }
 
 .btn-cargar-factura:hover, .btn-duplicar-factura:hover, .btn-borrar-factura:hover {
-  transform: scale(1.1); 
+  transform: scale(1.1);
   filter: brightness(1.3);
 }
 
@@ -380,9 +381,9 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
   body { padding: 12px; }
   .header-main { padding: 20px; flex-direction: column; text-align: center; }
   .header-main h1 { font-size: 1.5rem; }
-  
+
   .inline-2, .inline-3, .inline-4 { grid-template-columns: 1fr; gap: 12px; }
-  
+
   .btn-group-clientes {
     display: grid;
     grid-template-columns: 1fr;
@@ -390,7 +391,7 @@ button:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
   }
 
   button { padding: 16px; width: 100%; }
-  
+
   .acciones {
     flex-direction: row;
     bottom: 10px;
