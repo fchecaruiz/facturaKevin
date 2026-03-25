@@ -179,6 +179,9 @@ function createSessionLine(data = {}, focus = false) {
       recalcularTotales();
       checkAndPromptForNewLine(div);
     });
+    // ensure editable
+    i.disabled = false;
+    i.readOnly = false;
   });
 
   div.querySelector('.remove-session').addEventListener('click', () => {
@@ -233,38 +236,54 @@ async function checkAndPromptForNewLine(lineEl) {
 /* --- CÁLCULOS --- */
 function recalcularTotales() {
   const sessions = getAllSessionLines();
-  let base = 0;
-  sessions.forEach(s => base += (Number(s.cantidad) || 0) * (Number(s.importe) || 0));
+  let baseTotalSesiones = 0;
+  
+  // Sumamos el total de TODAS las sesiones (Cantidad * Importe)
+  sessions.forEach(s => {
+    baseTotalSesiones += (Number(s.cantidad) || 0) * (Number(s.importe) || 0);
+  });
+
+  let baseFinal = baseTotalSesiones;
 
   const despIncluido = document.getElementById("desplazamientoIncluido").checked;
   const alojaIncluido = document.getElementById("alojamientoIncluido").checked;
   const esReserva = document.getElementById("reserva50").checked;
 
-  document.getElementById("desplazamientoFields").style.display = despIncluido ? "grid" : "none";
-  document.getElementById("alojamientoFields").style.display = alojaIncluido ? "block" : "none";
+  // Mostrar/Ocultar campos extras
+  const despFields = document.getElementById("desplazamientoFields");
+  if (despFields) despFields.style.display = despIncluido ? "grid" : "none";
+  const alojFields = document.getElementById("alojamientoFields");
+  if (alojFields) alojFields.style.display = alojaIncluido ? "block" : "none";
 
-  if (despIncluido) base += obtenerNumero("kmDesplazamiento") * (obtenerNumero("precioPorKm") || 0.19);
-  if (alojaIncluido) base += obtenerNumero("costoAlojamiento");
+  // Sumar extras a la base si existen
+  if (despIncluido) {
+    baseFinal += obtenerNumero("kmDesplazamiento") * (obtenerNumero("precioPorKm") || 0.19);
+  }
+  if (alojaIncluido) {
+    baseFinal += obtenerNumero("costoAlojamiento");
+  }
+
+  // APLICAR RESERVA 50% SOBRE EL TOTAL DE LA BASE (Sesiones + Extras)
+  if (esReserva) {
+    baseFinal = baseFinal / 2;
+  }
 
   const pctRetenido = obtenerNumero("ivaRetenido") / 100;
   const pctAplicado = obtenerNumero("ivaAplicado") / 100;
   
-  let retenido = base * pctRetenido;
-  let aplicado = base * pctAplicado;
-  let total = base - retenido + aplicado;
+  const retenido = baseFinal * pctRetenido;
+  const aplicado = baseFinal * pctAplicado;
+  const total = baseFinal - retenido + aplicado;
 
-  // Lógica Reserva 50% (afecta cálculo solo si se marca)
-  if (esReserva) {
-    base = base / 2;
-    retenido = retenido / 2;
-    aplicado = aplicado / 2;
-    total = total / 2;
-  }
-
-  document.getElementById("subtotal").textContent = formatoEuro(base);
-  document.getElementById("ivaRetenidoImporte").textContent = "- " + formatoEuro(retenido);
-  document.getElementById("ivaImporte").textContent = "+ " + formatoEuro(aplicado);
-  document.getElementById("total").textContent = formatoEuro(total);
+  // Actualizar la interfaz
+  const subtotalEl = document.getElementById("subtotal");
+  if (subtotalEl) subtotalEl.textContent = formatoEuro(baseFinal);
+  const ivaRetEl = document.getElementById("ivaRetenidoImporte");
+  if (ivaRetEl) ivaRetEl.textContent = "- " + formatoEuro(retenido);
+  const ivaImpEl = document.getElementById("ivaImporte");
+  if (ivaImpEl) ivaImpEl.textContent = "+ " + formatoEuro(aplicado);
+  const totalEl = document.getElementById("total");
+  if (totalEl) totalEl.textContent = formatoEuro(total);
 }
 
 /* --- FIRESTORE: CLIENTES & CUENTAS --- */
@@ -294,6 +313,8 @@ function rellenarCliente() {
     setValor("clienteLocalidad", d.localidad); setValor("clienteProvincia", d.provincia);
     setValor("clienteTelefono", d.telefono); setValor("clienteTipoDoc", d.tipoDoc);
     setValor("clienteDoc", d.doc);
+    // Ensure recalculation after loading
+    setTimeout(recalcularTotales, 60);
   });
 }
 
@@ -436,9 +457,60 @@ async function mostrarHistorial() {
   });
 }
 
+/* --- Helpers to ensure fields are editable and listeners attached --- */
+
+function enableAllFormFields(keepNumeroBlockedIfEditing = true) {
+  // habilita TODOS los inputs/selects/textarea dentro de .card
+  document.querySelectorAll(".card input, .card textarea, .card select").forEach(el => {
+    if (!el) return;
+    // quitar atributos que puedan bloquear
+    el.disabled = false;
+    el.readOnly = false;
+    el.removeAttribute('readonly');
+    el.removeAttribute('disabled');
+  });
+  // si estamos editando y queremos bloquear número, aplicar bloqueo al final
+  const editId = getFacturaEditandoId();
+  if (keepNumeroBlockedIfEditing && editId) {
+    bloquearNumeroFactura();
+  } else {
+    desbloquearNumeroFactura();
+  }
+}
+
+function attachListenersToDefaultRow(defaultWrapper) {
+  if (!defaultWrapper) return;
+  const inputs = defaultWrapper.querySelectorAll('input, select');
+  inputs.forEach(i => {
+    // remove duplicates by cloning (safe approach)
+    const newEl = i.cloneNode(true);
+    i.parentNode.replaceChild(newEl, i);
+  });
+  // re-query
+  const reInputs = defaultWrapper.querySelectorAll('input, select');
+  reInputs.forEach(i => {
+    i.disabled = false;
+    i.readOnly = false;
+    i.addEventListener('input', () => {
+      recalcularTotales();
+      checkAndPromptForNewLine(defaultWrapper);
+    });
+  });
+}
+
+/* --- CARGAR FACTURA (editable) --- */
 function cargarFactura(id, d) {
   setFacturaEditandoId(id);
+  // Reset session counter to avoid duplicados de IDs
+  sessionCounter = 0;
+
+  // Habilitar todos los campos primero (dejaremos número bloqueado si corresponde)
+  enableAllFormFields(true);
+
+  // Bloquear número si estamos editando (mantener comportamiento deseado)
   if (id) bloquearNumeroFactura(); else desbloquearNumeroFactura();
+
+  // Poner valores básicos
   setValor("numeroFactura", d.numero); setValor("fechaFactura", d.fecha || new Date().toISOString().slice(0,10));
   setValor("clienteNombre", d.cliente); setValor("clienteEmail", d.email);
   setValor("clienteDireccion", d.direccion); setValor("clienteCP", d.cp);
@@ -452,8 +524,10 @@ function cargarFactura(id, d) {
   setValor("costoAlojamiento", d.costoAlojamiento || "");
   setValor("cuentaActual", d.cuenta || ""); setValor("observaciones", d.observaciones || "");
 
-  // reconstruir líneas
+  // Reconstruir líneas: limpiamos contenedor y añadimos fila default y resto de líneas
   if (sessionContainer) sessionContainer.innerHTML = '';
+
+  // Default row (IDs: cantidad, importe, diaSesion, sala)
   const defaultWrapper = document.createElement('div');
   defaultWrapper.className = 'session-line';
   defaultWrapper.dataset.default = "true";
@@ -464,16 +538,57 @@ function cargarFactura(id, d) {
     <label>Sala / Evento<input type="text" id="sala" placeholder="Ej: Pub, Discoteca..."></label>
   </div>`;
   sessionContainer.appendChild(defaultWrapper);
+  // Attach listeners + ensure editable
+  attachListenersToDefaultRow(defaultWrapper);
 
+  // setear valores de la primera línea si existen
   if (d.sessions && d.sessions.length) {
     const first = d.sessions[0];
-    setTimeout(() => { setValor('cantidad', first.cantidad || 1); setValor('importe', first.importe || ''); setValor('diaSesion', first.dia || ''); setValor('sala', first.sala || ''); }, 30);
-    for (let i = 1; i < d.sessions.length; i++) createSessionLine(d.sessions[i]);
+    setTimeout(() => {
+      setValor('cantidad', first.cantidad || 1);
+      setValor('importe', first.importe || '');
+      setValor('diaSesion', first.dia || '');
+      setValor('sala', first.sala || '');
+      recalcularTotales();
+    }, 30);
+    // agregar el resto de líneas como session-line editables
+    for (let i = 1; i < d.sessions.length; i++) {
+      // createSessionLine ya añade listeners y deja editables
+      createSessionLine(d.sessions[i]);
+    }
+  } else {
+    // no hay sesiones guardadas -> dejar default vacía
+    setTimeout(recalcularTotales, 30);
   }
+
+  // Asegurarse que todos los inputs están habilitados tras reconstruir DOM
+  enableAllFormFields(true);
+
+  // re-attach event listeners comunes (por si los IDs se han recreado)
+  ['cantidad','importe','diaSesion','sala'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      // remove duplicates by cloning then add
+      const clone = el.cloneNode(true);
+      el.parentNode.replaceChild(clone, el);
+      clone.addEventListener('input', recalcularTotales);
+    }
+  });
+
   setValor("ivaRetenido", d.ivaRetenido || 0); setValor("ivaAplicado", d.ivaAplicado || 10);
+
+  // recalc totals and focus client section
   recalcularTotales();
+
+  // Scroll y focus en nombre cliente
   const seccion = document.getElementById("seccionCliente");
-  if (seccion) { seccion.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => document.getElementById("clienteNombre").focus(), 600); }
+  if (seccion) {
+    seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => {
+      const clienteNombre = document.getElementById("clienteNombre");
+      if (clienteNombre) clienteNombre.focus();
+    }, 600);
+  }
 }
 
 /* --- IMPRESIÓN PDF (A4) - sin aviso superior; TITULO siempre 'FACTURA' --- */
@@ -681,6 +796,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       <label>Sala / Evento<input type="text" id="sala" placeholder="Ej: Pub, Discoteca..."></label>
     </div>`;
     sessionContainer.appendChild(defaultWrapper);
+    // attach listeners to default row inputs
+    attachListenersToDefaultRow(defaultWrapper);
   }
 
   // eventos principales
@@ -692,29 +809,39 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (el) el.addEventListener('input', recalcularTotales);
   });
 
-  document.getElementById("btnNuevaFacturaFixed").onclick = async () => {
-    setFacturaEditandoId(null); desbloquearNumeroFactura();
-    // limpiar inputs no emisores
-    document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor'])").forEach(i => {
-      if (i.type === 'checkbox') i.checked = false;
-      else i.value = "";
-    });
-    // reset sesiones
-    if (sessionContainer) { sessionContainer.innerHTML = ''; 
-      const defaultWrapper = document.createElement('div');
-      defaultWrapper.className = 'session-line'; defaultWrapper.dataset.default = "true";
-      defaultWrapper.innerHTML = `<div class="inline-4">
-        <label>Cantidad<select id="cantidad"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
-        <label>Importe Unitario (€)<input type="number" id="importe" step="0.01" placeholder="0.00"></label>
-        <label>Día Sesión<input type="date" id="diaSesion"></label>
-        <label>Sala / Evento<input type="text" id="sala" placeholder="Ej: Pub, Discoteca..."></label>
-      </div>`;
-      sessionContainer.appendChild(defaultWrapper);
-    }
-    recalcularTotales(); await asignarNumeroFactura();
-    const seccion = document.getElementById("seccionCliente");
-    if (seccion) { seccion.scrollIntoView({ behavior: 'smooth' }); setTimeout(() => document.getElementById("clienteNombre").focus(), 600); }
-  };
+  const nuevaBtn = document.getElementById("btnNuevaFacturaFixed");
+  if (nuevaBtn) {
+    nuevaBtn.onclick = async () => {
+      setFacturaEditandoId(null); desbloquearNumeroFactura();
+      // limpiar inputs no emisores
+      document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor']), .card select:not([id^='emisor'])").forEach(i => {
+        if (i.type === 'checkbox') i.checked = false;
+        else i.value = "";
+        i.disabled = false;
+        i.readOnly = false;
+        i.removeAttribute('disabled');
+        i.removeAttribute('readonly');
+      });
+      // reset sesiones
+      if (sessionContainer) { sessionContainer.innerHTML = ''; 
+        sessionCounter = 0;
+        const defaultWrapper = document.createElement('div');
+        defaultWrapper.className = 'session-line'; defaultWrapper.dataset.default = "true";
+        defaultWrapper.innerHTML = `<div class="inline-4">
+          <label>Cantidad<select id="cantidad"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
+          <label>Importe Unitario (€)<input type="number" id="importe" step="0.01" placeholder="0.00"></label>
+          <label>Día Sesión<input type="date" id="diaSesion"></label>
+          <label>Sala / Evento<input type="text" id="sala" placeholder="Ej: Pub, Discoteca..."></label>
+        </div>`;
+        sessionContainer.appendChild(defaultWrapper);
+        // attach listeners
+        attachListenersToDefaultRow(defaultWrapper);
+      }
+      recalcularTotales(); await asignarNumeroFactura();
+      const seccion = document.getElementById("seccionCliente");
+      if (seccion) { seccion.scrollIntoView({ behavior: 'smooth' }); setTimeout(() => document.getElementById("clienteNombre").focus(), 600); }
+    };
+  }
 
   const btnGuardarFactura = document.getElementById("btnGuardarFactura");
   if (btnGuardarFactura) btnGuardarFactura.onclick = guardarOActualizarHistorial;
@@ -746,9 +873,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   const btnCerrarHistorial = document.getElementById("btnCerrarHistorial");
   if (btnCerrarHistorial) btnCerrarHistorial.onclick = () => document.getElementById("modalHistorial").classList.remove("show");
 
-  document.getElementById("desplazamientoIncluido").onchange = recalcularTotales;
-  document.getElementById("alojamientoIncluido").onchange = recalcularTotales;
-  document.getElementById("reserva50").onchange = recalcularTotales;
+  const despEl = document.getElementById("desplazamientoIncluido");
+  if (despEl) despEl.onchange = recalcularTotales;
+  const alojEl = document.getElementById("alojamientoIncluido");
+  if (alojEl) alojEl.onchange = recalcularTotales;
+  const reservaEl = document.getElementById("reserva50");
+  if (reservaEl) reservaEl.onchange = recalcularTotales;
   ['ivaRetenido','ivaAplicado','kmDesplazamiento','precioPorKm','costoAlojamiento'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', recalcularTotales);
