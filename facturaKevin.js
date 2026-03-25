@@ -44,7 +44,7 @@ function showToast(message, type = "blue") {
   const toast = document.getElementById("toast");
   if (!toast) return;
   toast.textContent = message;
-  toast.style.background = type === "red" ? "#ef4444" : "#3b82f6";
+  toast.style.background = type === "red" ? "#ef4444" : "#6366f1";
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2500);
 }
@@ -68,7 +68,7 @@ function confirmarToast(mensaje) {
 }
 
 function formatoEuro(v) {
-  return (Number(v) || 0).toFixed(2).replace(".", ",") + " €";
+  return (Number(v) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
 function obtenerNumero(id) {
@@ -184,13 +184,17 @@ async function guardarCliente() {
   const sel = document.getElementById("clientesGuardados");
   const idExistente = sel.value;
 
-  if (idExistente) {
-    await db.collection("clientes").doc(idExistente).set(datos);
-    showToast("Cliente actualizado ✅");
-  } else {
-    const ref = await db.collection("clientes").add(datos);
-    sel.value = ref.id;
-    showToast("Cliente guardado ✅");
+  try {
+    if (idExistente) {
+      await db.collection("clientes").doc(idExistente).set(datos);
+      showToast("Cliente actualizado ✅");
+    } else {
+      const ref = await db.collection("clientes").add(datos);
+      sel.value = ref.id;
+      showToast("Cliente guardado ✅");
+    }
+  } catch (e) {
+    showToast("Error al guardar cliente", "red");
   }
 }
 
@@ -202,7 +206,7 @@ async function eliminarCliente() {
   if (!ok) return;
   await db.collection("clientes").doc(id).delete();
   sel.value = "";
-  ["clienteNombre","clienteEmail","clienteDireccion","clienteCP","clienteLocalidad","clienteProvincia","clienteTelefono","clienteDoc"].forEach(i => setValor(i, ""));
+  ["clienteNombre", "clienteEmail", "clienteDireccion", "clienteCP", "clienteLocalidad", "clienteProvincia", "clienteTelefono", "clienteDoc"].forEach(i => setValor(i, ""));
   showToast("Cliente eliminado 🗑️", "red");
 }
 
@@ -295,24 +299,28 @@ async function guardarOActualizarHistorial() {
   };
 
   const editandoId = getFacturaEditandoId();
-  if (editandoId) {
-    await db.collection("facturas").doc(editandoId).set(datos);
-    showToast("Factura actualizada ✅");
-  } else {
-    await db.collection("facturas").add(datos);
-    showToast("Factura guardada ✅");
-    await asignarNumeroFactura();
+  try {
+    if (editandoId) {
+      await db.collection("facturas").doc(editandoId).set(datos);
+      showToast("Factura actualizada ✅");
+    } else {
+      await db.collection("facturas").add(datos);
+      showToast("Factura guardada ✅");
+      await asignarNumeroFactura();
+    }
+  } catch (e) {
+    showToast("Error al guardar factura", "red");
   }
 }
 
 async function mostrarHistorial() {
   document.getElementById("modalHistorial").classList.add("show");
   const lista = document.getElementById("listaHistorial");
-  lista.innerHTML = "<p style='color:#64748b;text-align:center;'>Cargando...</p>";
+  lista.innerHTML = "<p style='color:#94a3b8;text-align:center;padding:20px;'>Cargando historial...</p>";
   try {
     const snap = await db.collection("facturas").orderBy("timestamp", "desc").get();
     if (snap.empty) {
-      lista.innerHTML = "<p style='color:#64748b;text-align:center;'>No hay facturas guardadas</p>";
+      lista.innerHTML = "<p style='color:#94a3b8;text-align:center;padding:20px;'>No hay facturas guardadas</p>";
       return;
     }
     lista.innerHTML = "";
@@ -352,7 +360,7 @@ async function mostrarHistorial() {
       lista.appendChild(item);
     });
   } catch (e) {
-    lista.innerHTML = "<p style='text-align:center; color:#ef4444;'>Error al cargar historial</p>";
+    lista.innerHTML = "<p style='text-align:center; color:#ef4444;padding:20px;'>Error al cargar historial</p>";
   }
 }
 
@@ -386,6 +394,13 @@ function cargarFactura(id, d) {
   setValor("observaciones", d.observaciones);
   recalcularTotales();
   showToast(id ? "Factura cargada 👁️" : "Factura duplicada 📋");
+
+  // Desplazamiento suave al inicio de la sección cliente
+  const seccion = document.getElementById("seccionCliente");
+  if (seccion) {
+    seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => document.getElementById("clienteNombre").focus(), 600);
+  }
 }
 
 /* --- IMPRESIÓN PDF --- */
@@ -396,7 +411,6 @@ function prepararImpresion() {
     <div class="print-header">
       <div>
         <h1>KEVIN CHECA</h1>
-        <div style="font-size:10px; color:#475569; letter-spacing:1px;">FACTURA PROFESIONAL</div>
       </div>
       <img src="${logoSrc}" class="print-logo" crossorigin="anonymous">
     </div>
@@ -603,7 +617,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   escucharCuentas();
   await asignarNumeroFactura();
 
-  document.getElementById("btnNuevaFactura").onclick = async () => {
+  // Botón fijo de Nueva Factura con desplazamiento suave
+  document.getElementById("btnNuevaFacturaFixed").onclick = async () => {
     setFacturaEditandoId(null);
     desbloquearNumeroFactura();
     document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor'])").forEach(i => i.value = "");
@@ -614,8 +629,16 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("alojamientoIncluido").checked = false;
     recalcularTotales();
     await asignarNumeroFactura();
-    document.getElementById("clienteNombre").focus();
+
     showToast("Nueva factura lista 🆕");
+
+    // Desplazamiento suave a la sección de cliente
+    const seccion = document.getElementById("seccionCliente");
+    if (seccion) {
+      seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Esperamos un poco a que termine el scroll para poner el foco
+      setTimeout(() => document.getElementById("clienteNombre").focus(), 600);
+    }
   };
 
   document.getElementById("btnGuardarFactura").onclick = async () => {
