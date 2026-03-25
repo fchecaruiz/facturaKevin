@@ -74,32 +74,47 @@
     <!-- SERVICIO -->
     <section class="card">
       <h2>DETALLES DEL SERVICIO</h2>
+
       <label>Descripción de la Sesión / Servicio
         <textarea id="descripcionSesion" rows="2"></textarea>
       </label>
-      <div class="inline-3">
-        <label>Cantidad
-          <select id="cantidad">
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="10">10</option>
-          </select>
-        </label>
-        <label>Importe Unitario (€)
-          <input type="number" id="importe" step="0.01" placeholder="0.00">
-        </label>
-        <label>Día Sesión
-          <input type="date" id="diaSesion">
-        </label>
+
+      <!-- CONTENEDOR DE LÍNEAS DE SESIÓN (la primera línea usa los IDs originales) -->
+      <div id="sessionLines">
+        <div class="session-line" data-default="true">
+          <div class="inline-3">
+            <label>Cantidad
+              <select id="cantidad">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+              </select>
+            </label>
+            <label>Importe Unitario (€)
+              <input type="number" id="importe" step="0.01" placeholder="0.00">
+            </label>
+            <label>Día Sesión
+              <input type="date" id="diaSesion">
+            </label>
+          </div>
+        </div>
+        <!-- nuevas líneas serán añadidas aquí dinámicamente -->
       </div>
-      <div class="inline-3">
+
+      <!-- nota / botón manual: (opcional) -->
+      <div class="line-actions" style="display:flex; gap:8px; align-items:center;">
+        <button id="btnAgregarSesionManual" class="btn-purple" type="button">+ Añadir sesión</button>
+        <small style="color:var(--text-muted); font-size:0.85rem;">Puedes añadir varias sesiones para la misma factura</small>
+      </div>
+
+      <div class="inline-3" style="margin-top:8px;">
         <label>IVA Retenido (%)
           <select id="ivaRetenido">
             <option value="0">0%</option>

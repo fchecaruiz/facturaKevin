@@ -142,6 +142,30 @@ textarea { resize: vertical; min-height: 80px; }
   content: '✓'; position: absolute; color: white; font-size: 14px; left: 4px; top: -1px;
 }
 
+/* ===== SESSION LINES ===== */
+#sessionLines { display:flex; flex-direction:column; gap:10px; }
+.session-line {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.03);
+  padding: 10px;
+  border-radius: 10px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  position: relative;
+}
+.session-line .remove-session {
+  position: absolute;
+  top:8px;
+  right:8px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding:6px 8px;
+  cursor: pointer;
+}
+
 /* ===== TOTALES ===== */
 .total-display {
   display: block;

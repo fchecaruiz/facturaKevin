@@ -40,28 +40,66 @@ function desbloquearNumeroFactura() {
 }
 
 /* --- UTILIDADES --- */
-function showToast(message, type = "blue") {
+function showToast(message, type = "blue", duration = 2200) {
   const toast = document.getElementById("toast");
   if (!toast) return;
   toast.textContent = message;
   toast.style.background = type === "red" ? "#ef4444" : "#6366f1";
   toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), 2500);
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => toast.classList.remove("show"), duration);
 }
 
+// confirmarToast (ya existía) - mantiene funcionalidad borrado, etc.
 function confirmarToast(mensaje) {
   return new Promise((resolve) => {
     const overlay = document.getElementById("confirmOverlay");
     const msg = document.getElementById("confirmMsg");
+    const btnSi = document.getElementById("confirmSi");
+    const btnNo = document.getElementById("confirmNo");
+    // Restaurar clases por defecto para usos generales (Si = rojo, No = azul)
+    btnSi.className = "btn-red";
+    btnNo.className = "btn-blue";
+
     msg.textContent = mensaje;
     overlay.classList.add("show");
 
-    document.getElementById("confirmSi").onclick = () => {
+    btnSi.onclick = () => {
       overlay.classList.remove("show");
       resolve(true);
     };
-    document.getElementById("confirmNo").onclick = () => {
+    btnNo.onclick = () => {
       overlay.classList.remove("show");
+      resolve(false);
+    };
+  });
+}
+
+// prompt específico para "Añadir otra sesión?" (Sí azul, No rojo)
+function promptAddSession(mensaje = "¿Añadir otra sesión?") {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById("confirmOverlay");
+    const msg = document.getElementById("confirmMsg");
+    const btnSi = document.getElementById("confirmSi");
+    const btnNo = document.getElementById("confirmNo");
+    // Invertimos colores para esta pregunta concreta (Si = azul, No = rojo)
+    btnSi.className = "btn-blue";
+    btnNo.className = "btn-red";
+
+    msg.textContent = mensaje;
+    overlay.classList.add("show");
+
+    btnSi.onclick = () => {
+      overlay.classList.remove("show");
+      // Restauramos clases por defecto para siguientes usos
+      btnSi.className = "btn-red";
+      btnNo.className = "btn-blue";
+      resolve(true);
+    };
+    btnNo.onclick = () => {
+      overlay.classList.remove("show");
+      btnSi.className = "btn-red";
+      btnNo.className = "btn-blue";
       resolve(false);
     };
   });
@@ -96,12 +134,156 @@ function setChecked(id, valor) {
   el.checked = !!valor;
 }
 
+/* --- SESSIONS MANAGEMENT (multi-line) --- */
+const sessionContainer = document.getElementById ? document.getElementById("sessionLines") : null;
+let sessionCounter = 0;
+
+function createSessionLine(data = {}, focus = false) {
+  // data: { cantidad, importe, dia }
+  sessionCounter++;
+  // If data.default === true, we use the existing inputs (they already exist in DOM)
+  if (data && data.default) {
+    // mark default as 'tracked' by returning an object mapping to existing IDs
+    const el = document.querySelector('.session-line[data-default="true"]');
+    if (el) {
+      el.dataset._tracked = "true";
+    }
+    return el;
+  }
+
+  // Build a new line (no duplicate IDs)
+  const div = document.createElement("div");
+  div.className = "session-line";
+  div.dataset._id = `session-${sessionCounter}`;
+
+  div.innerHTML = `
+    <div class="inline-3">
+      <label>Cantidad
+        <select class="session-cantidad">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </label>
+      <label>Importe Unitario (€)
+        <input type="number" class="session-importe" step="0.01" placeholder="0.00">
+      </label>
+      <label>Día Sesión
+        <input type="date" class="session-dia">
+      </label>
+    </div>
+    <button type="button" class="remove-session" title="Eliminar sesión">✖</button>
+  `;
+  // set provided values if any
+  if (data.cantidad) div.querySelector('.session-cantidad').value = data.cantidad;
+  if (data.importe) div.querySelector('.session-importe').value = data.importe;
+  if (data.dia) div.querySelector('.session-dia').value = data.dia;
+
+  // listeners to recalc and to prompt when filled
+  const cantidadEl = div.querySelector('.session-cantidad');
+  const importeEl = div.querySelector('.session-importe');
+  const diaEl = div.querySelector('.session-dia');
+  const inputs = [cantidadEl, importeEl, diaEl];
+  inputs.forEach(i => {
+    i.addEventListener('input', () => {
+      recalcularTotales();
+      checkAndPromptForNewLine(div);
+    });
+  });
+
+  // remove behavior
+  div.querySelector('.remove-session').addEventListener('click', () => {
+    div.remove();
+    recalcularTotales();
+  });
+
+  sessionContainer.appendChild(div);
+
+  if (focus) {
+    setTimeout(() => {
+      const imp = div.querySelector('.session-importe');
+      if (imp) imp.focus();
+    }, 80);
+  }
+
+  return div;
+}
+
+// returns array of session objects derived from DOM (both default line and extra ones)
+function getAllSessionLines() {
+  const arr = [];
+
+  // default (original) line
+  const defaultEl = document.querySelector('.session-line[data-default="true"]');
+  if (defaultEl) {
+    const cantidad = Number(document.getElementById('cantidad')?.value) || 0;
+    const importe = Number(document.getElementById('importe')?.value) || 0;
+    const dia = document.getElementById('diaSesion')?.value || '';
+    arr.push({ cantidad, importe, dia, _source: 'default' });
+  }
+
+  // other dynamically added lines
+  (document.querySelectorAll('#sessionLines .session-line') || []).forEach(el => {
+    if (el.dataset.default === "true") return; // skip default
+    const cantidad = Number(el.querySelector('.session-cantidad')?.value) || 0;
+    const importe = Number(el.querySelector('.session-importe')?.value) || 0;
+    const dia = el.querySelector('.session-dia')?.value || '';
+    arr.push({ cantidad, importe, dia, _source: el.dataset._id || '' });
+  });
+
+  return arr;
+}
+
+// helper: if this line is the last one and becomes filled, prompt to add another
+async function checkAndPromptForNewLine(lineEl) {
+  // only prompt if this is the last line in the container
+  const lines = Array.from(document.querySelectorAll('#sessionLines .session-line'));
+  if (!lines.length) return;
+  const last = lines[lines.length - 1];
+  if (last !== lineEl) return;
+
+  // check if filled: importe > 0 and dia not empty
+  let importe = 0;
+  let dia = '';
+  if (lineEl.dataset.default === "true") {
+    importe = Number(document.getElementById('importe')?.value) || 0;
+    dia = document.getElementById('diaSesion')?.value || '';
+  } else {
+    importe = Number(lineEl.querySelector('.session-importe')?.value) || 0;
+    dia = lineEl.querySelector('.session-dia')?.value || '';
+  }
+
+  // If already prompted for this line, don't reprompt
+  if (lineEl.dataset._prompted === "true") return;
+
+  if (importe > 0 && dia) {
+    // mark as prompted to avoid duplicate prompts
+    lineEl.dataset._prompted = "true";
+    const quiere = await promptAddSession("¿Añadir otra sesión?");
+    if (quiere) {
+      createSessionLine({}, true);
+    }
+  }
+}
+
 /* --- CÁLCULOS --- */
 function recalcularTotales() {
-  const cantidad = obtenerNumero("cantidad");
-  const importe = obtenerNumero("importe");
-  let base = cantidad * importe;
+  // Sum over all session lines
+  const sessions = getAllSessionLines();
+  let base = 0;
+  sessions.forEach(s => {
+    const lineBase = (Number(s.cantidad) || 0) * (Number(s.importe) || 0);
+    base += lineBase;
+  });
 
+  // Añadir desplazamiento y alojamiento (aplican a toda factura)
   const despIncluido = document.getElementById("desplazamientoIncluido").checked;
   const alojaIncluido = document.getElementById("alojamientoIncluido").checked;
 
@@ -268,6 +450,13 @@ async function guardarOActualizarHistorial() {
     return;
   }
 
+  // gather sessions array
+  const sessions = getAllSessionLines().map(s => ({
+    cantidad: s.cantidad,
+    importe: s.importe,
+    dia: s.dia
+  }));
+
   const datos = {
     numero,
     cliente,
@@ -283,6 +472,7 @@ async function guardarOActualizarHistorial() {
     tipoDoc: obtenerTexto("clienteTipoDoc"),
     doc: obtenerTexto("clienteDoc"),
     descripcion: obtenerTexto("descripcionSesion"),
+    // antiguas propiedades (compatibilidad)
     cantidad: obtenerNumero("cantidad"),
     importe: obtenerNumero("importe"),
     diaSesion: obtenerTexto("diaSesion"),
@@ -295,6 +485,7 @@ async function guardarOActualizarHistorial() {
     costoAlojamiento: obtenerNumero("costoAlojamiento"),
     cuenta: obtenerTexto("cuentaActual"),
     observaciones: obtenerTexto("observaciones"),
+    sessions, // NUEVO: array con todas las sesiones
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   };
 
@@ -379,19 +570,71 @@ function cargarFactura(id, d) {
   setValor("clienteTelefono", d.telefono);
   setValor("clienteTipoDoc", d.tipoDoc);
   setValor("clienteDoc", d.doc);
-  setValor("descripcionSesion", d.descripcion);
-  setValor("cantidad", d.cantidad);
-  setValor("importe", d.importe);
-  setValor("diaSesion", d.diaSesion);
-  setValor("ivaRetenido", d.ivaRetenido);
-  setValor("ivaAplicado", d.ivaAplicado);
-  setChecked("desplazamientoIncluido", d.desplazamiento);
-  setValor("kmDesplazamiento", d.km);
-  setValor("precioPorKm", d.precioPorKm);
-  setChecked("alojamientoIncluido", d.alojamiento);
-  setValor("costoAlojamiento", d.costoAlojamiento);
-  setValor("cuentaActual", d.cuenta);
-  setValor("observaciones", d.observaciones);
+  setValor("descripcionSesion", d.descripcion || "");
+  setChecked("desplazamientoIncluido", d.desplazamiento || false);
+  setValor("kmDesplazamiento", d.km || "");
+  setValor("precioPorKm", d.precioPorKm || "");
+  setChecked("alojamientoIncluido", d.alojamiento || false);
+  setValor("costoAlojamiento", d.costoAlojamiento || "");
+  setValor("cuentaActual", d.cuenta || "");
+  setValor("observaciones", d.observaciones || "");
+
+  // Clear existing lines and recreate
+  if (sessionContainer) sessionContainer.innerHTML = '';
+  // recreate default line (use original inputs)
+  const defaultWrapper = document.createElement('div');
+  defaultWrapper.className = 'session-line';
+  defaultWrapper.dataset.default = "true";
+  defaultWrapper.innerHTML = `
+    <div class="inline-3">
+      <label>Cantidad
+        <select id="cantidad">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </label>
+      <label>Importe Unitario (€)
+        <input type="number" id="importe" step="0.01" placeholder="0.00">
+      </label>
+      <label>Día Sesión
+        <input type="date" id="diaSesion">
+      </label>
+    </div>
+  `;
+  // append default wrapper and set values
+  sessionContainer.appendChild(defaultWrapper);
+  // set default values from doc (if sessions exist, load first session into default)
+  if (d.sessions && Array.isArray(d.sessions) && d.sessions.length) {
+    const first = d.sessions[0];
+    setTimeout(() => {
+      setValor('cantidad', first.cantidad || 1);
+      setValor('importe', first.importe || '');
+      setValor('diaSesion', first.dia || '');
+    }, 30);
+    // add the rest sessions
+    for (let i = 1; i < d.sessions.length; i++) {
+      createSessionLine({ cantidad: d.sessions[i].cantidad, importe: d.sessions[i].importe, dia: d.sessions[i].dia });
+    }
+  } else {
+    // legacy fields (single session)
+    setTimeout(() => {
+      setValor('cantidad', d.cantidad || 1);
+      setValor('importe', d.importe || '');
+      setValor('diaSesion', d.diaSesion || '');
+    }, 30);
+  }
+
+  // set IVA selects
+  setValor("ivaRetenido", d.ivaRetenido || 0);
+  setValor("ivaAplicado", d.ivaAplicado || 10);
   recalcularTotales();
   showToast(id ? "Factura cargada 👁️" : "Factura duplicada 📋");
 
@@ -399,13 +642,33 @@ function cargarFactura(id, d) {
   const seccion = document.getElementById("seccionCliente");
   if (seccion) {
     seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(() => document.getElementById("clienteNombre").focus(), 600);
+    setTimeout(() => {
+      document.getElementById("clienteNombre").focus();
+    }, 600);
   }
 }
 
 /* --- IMPRESIÓN PDF --- */
 function prepararImpresion() {
   const logoSrc = document.querySelector(".logo-kevin")?.src || "logo-kevin.png";
+
+  // Build sessions rows for print
+  const sessions = getAllSessionLines();
+  let sessionsHtml = '';
+  sessions.forEach(s => {
+    const cantidad = s.cantidad || 0;
+    const importe = (Number(s.importe) || 0).toFixed(2) + ' €';
+    const importeTotal = ((Number(s.cantidad)||0) * (Number(s.importe)||0)).toFixed(2) + ' €';
+    const dia = s.dia || '';
+    sessionsHtml += `
+      <tr>
+        <td style="padding:8px;border:1px solid #e6e6e6;">${dia}</td>
+        <td style="padding:8px;border:1px solid #e6e6e6;text-align:right;">${cantidad}</td>
+        <td style="padding:8px;border:1px solid #e6e6e6;text-align:right;">${importe}</td>
+        <td style="padding:8px;border:1px solid #e6e6e6;text-align:right;">${importeTotal}</td>
+      </tr>
+    `;
+  });
 
   const contenido = `
     <div class="print-header">
@@ -453,11 +716,21 @@ function prepararImpresion() {
     <div class="print-card">
       <div class="print-section-title">DETALLES DEL SERVICIO</div>
       <div class="print-value" style="min-height:24px; white-space:pre-wrap; margin-bottom:8px;">${obtenerTexto("descripcionSesion")}</div>
-      <div class="print-grid-3">
-        <div><div class="print-label">CANTIDAD</div><div class="print-value">${obtenerNumero("cantidad")}</div></div>
-        <div><div class="print-label">PRECIO UNIDAD</div><div class="print-value">${formatoEuro(obtenerNumero("importe"))}</div></div>
-        <div><div class="print-label">DÍA SESIÓN</div><div class="print-value">${obtenerTexto("diaSesion")}</div></div>
-      </div>
+
+      <table style="width:100%; border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:8px;border:1px solid #e6e6e6;">DÍA</th>
+            <th style="padding:8px;border:1px solid #e6e6e6;">CANT.</th>
+            <th style="padding:8px;border:1px solid #e6e6e6;">P.U.</th>
+            <th style="padding:8px;border:1px solid #e6e6e6;">IMPORTE</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sessionsHtml}
+        </tbody>
+      </table>
+
       <div class="print-totales">
         <div class="print-total-row"><span>Subtotal:</span><span>${document.getElementById("subtotal").textContent}</span></div>
         <div class="print-total-row"><span>IVA Retenido (${obtenerNumero("ivaRetenido")}%):</span><span>${document.getElementById("ivaRetenidoImporte").textContent}</span></div>
@@ -617,16 +890,85 @@ window.addEventListener("DOMContentLoaded", async () => {
   escucharCuentas();
   await asignarNumeroFactura();
 
+  // Initialize session container and default line
+  // Ensure sessionContainer is the element we expect
+  if (!sessionContainer) return;
+
+  // bind manual add session button
+  document.getElementById('btnAgregarSesionManual').addEventListener('click', () => {
+    createSessionLine({}, true);
+  });
+
+  // make default line "tracked" and add listeners to its inputs
+  const defaultLine = document.querySelector('.session-line[data-default="true"]');
+  if (defaultLine) {
+    // attach events to existing IDs
+    ['cantidad','importe','diaSesion'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', () => {
+          recalcularTotales();
+          checkAndPromptForNewLine(defaultLine);
+        });
+      }
+    });
+  }
+
   // Botón fijo de Nueva Factura con desplazamiento suave
   document.getElementById("btnNuevaFacturaFixed").onclick = async () => {
     setFacturaEditandoId(null);
     desbloquearNumeroFactura();
+    // Clear all card inputs except emisor fields
     document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor'])").forEach(i => i.value = "");
+    // reset selects
     document.getElementById("cantidad").selectedIndex = 0;
     document.getElementById("ivaRetenido").selectedIndex = 0;
     document.getElementById("ivaAplicado").selectedIndex = 2;
     document.getElementById("desplazamientoIncluido").checked = false;
     document.getElementById("alojamientoIncluido").checked = false;
+
+    // Reset session lines to single default
+    if (sessionContainer) {
+      sessionContainer.innerHTML = '';
+      // recreate default original inputs
+      const defaultWrapper = document.createElement('div');
+      defaultWrapper.className = 'session-line';
+      defaultWrapper.dataset.default = "true";
+      defaultWrapper.innerHTML = `
+        <div class="inline-3">
+          <label>Cantidad
+            <select id="cantidad">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+            </select>
+          </label>
+          <label>Importe Unitario (€)
+            <input type="number" id="importe" step="0.01" placeholder="0.00">
+          </label>
+          <label>Día Sesión
+            <input type="date" id="diaSesion">
+          </label>
+        </div>
+      `;
+      sessionContainer.appendChild(defaultWrapper);
+      // reattach listeners
+      ['cantidad','importe','diaSesion'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => {
+          recalcularTotales();
+          checkAndPromptForNewLine(defaultWrapper);
+        });
+      });
+    }
+
     recalcularTotales();
     await asignarNumeroFactura();
 
@@ -657,6 +999,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("desplazamientoIncluido").onchange = recalcularTotales;
   document.getElementById("alojamientoIncluido").onchange = recalcularTotales;
 
-  document.querySelectorAll("input, select, textarea").forEach(el => el.oninput = recalcularTotales);
+  // Attach recalculation for global selects/inputs that aren't part of session lines
+  ['ivaRetenido','ivaAplicado','kmDesplazamiento','precioPorKm','costoAlojamiento'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', recalcularTotales);
+  });
+
   recalcularTotales();
 });
