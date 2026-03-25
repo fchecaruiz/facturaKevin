@@ -1,7 +1,4 @@
-// facturaKevin.js - Completo con Firebase, UI, multi-líneas y generación PDF (fallback si popup bloqueado)
-// Nota: TITULO siempre "FACTURA". Aviso de reserva eliminado del encabezado; si reserva marcada, se añade en OBSERVACIONES en rojo vivo.
-
-// ===== FIREBASE CONFIG =====
+// facturaKevin.js - Versión completa (mejorada: extracción robusta de CP y Provincia)
 const firebaseConfig = {
   apiKey: "AIzaSyDbDypH0jS5Oo-0FZgzh-nySHu1u2-oCwg",
   authDomain: "facturakevin-34ff5.firebaseapp.com",
@@ -16,35 +13,40 @@ const db = firebase.firestore();
 
 window._facturaEditandoId = null;
 
-function getFacturaEditandoId() {
-  const val = document.getElementById("facturaEditandoIdHidden")?.value;
-  return val && val.trim() !== "" ? val.trim() : null;
+/* ----------------- Utilidades ----------------- */
+function obtenerTexto(id) {
+  return document.getElementById(id)?.value || "";
 }
-
-function setFacturaEditandoId(id) {
-  window._facturaEditandoId = id;
-  const el = document.getElementById("facturaEditandoIdHidden");
-  if (el) el.value = id || "";
+function obtenerNumero(id) {
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  return Number(el.value) || 0;
 }
-
-/* --- BLOQUEO NÚMERO FACTURA --- */
-function bloquearNumeroFactura() {
-  const el = document.getElementById("numeroFactura");
+function setValor(id, valor) {
+  const el = document.getElementById(id);
   if (!el) return;
-  el.readOnly = true;
-  el.style.opacity = "0.6";
-  el.style.cursor = "not-allowed";
+  el.value = valor ?? "";
+  if (el.tagName === "SELECT" && el.value !== String(valor)) {
+    el.selectedIndex = 0;
+  }
 }
-
-function desbloquearNumeroFactura() {
-  const el = document.getElementById("numeroFactura");
+function setChecked(id, valor) {
+  const el = document.getElementById(id);
   if (!el) return;
-  el.readOnly = false;
-  el.style.opacity = "1";
-  el.style.cursor = "text";
+  el.checked = !!valor;
 }
-
-/* --- UTILIDADES UI --- */
+function formatoEuro(v) {
+  return (Number(v) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+}
+function formatDateForPrint(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  const day = dt.toLocaleDateString('es-ES', { day: '2-digit' });
+  const month = dt.toLocaleDateString('es-ES', { month: 'long' });
+  const year = dt.getFullYear();
+  return `${day}-${month}-${year}`;
+}
 function showToast(message, type = "blue", duration = 2200) {
   const toast = document.getElementById("toast");
   if (!toast) return;
@@ -54,7 +56,6 @@ function showToast(message, type = "blue", duration = 2200) {
   clearTimeout(toast._timeout);
   toast._timeout = setTimeout(() => toast.classList.remove("show"), duration);
 }
-
 function confirmarToast(mensaje) {
   return new Promise((resolve) => {
     const overlay = document.getElementById("confirmOverlay");
@@ -69,7 +70,6 @@ function confirmarToast(mensaje) {
     btnNo.onclick = () => { overlay.classList.remove("show"); resolve(false); };
   });
 }
-
 function promptAddSession(mensaje = "¿Añadir otra sesión?") {
   return new Promise((resolve) => {
     const overlay = document.getElementById("confirmOverlay");
@@ -80,80 +80,107 @@ function promptAddSession(mensaje = "¿Añadir otra sesión?") {
     btnNo.className = "btn-red";
     msg.textContent = mensaje;
     overlay.classList.add("show");
-    btnSi.onclick = () => { overlay.classList.remove("show"); btnSi.className = "btn-red"; btnNo.className = "btn-blue"; resolve(true); };
-    btnNo.onclick = () => { overlay.classList.remove("show"); btnSi.className = "btn-red"; btnNo.className = "btn-blue"; resolve(false); };
+    btnSi.onclick = () => { overlay.classList.remove("show"); resolve(true); };
+    btnNo.onclick = () => { overlay.classList.remove("show"); resolve(false); };
   });
 }
 
-function formatoEuro(v) {
-  return (Number(v) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
-}
-
-function formatDateForPrint(d) {
-  if (!d) return '';
-  const dt = new Date(d);
-  if (isNaN(dt)) return d;
-  const day = dt.toLocaleDateString('es-ES', { day: '2-digit' });
-  const month = dt.toLocaleDateString('es-ES', { month: 'long' });
-  const year = dt.getFullYear();
-  return `${day}-${month}-${year}`;
-}
-
-function obtenerNumero(id) {
-  const el = document.getElementById(id);
-  if (!el) return 0;
-  return Number(el.value) || 0;
-}
-
-function obtenerTexto(id) {
-  return document.getElementById(id)?.value || "";
-}
-
-function setValor(id, valor) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.value = valor ?? "";
-  if (el.tagName === "SELECT" && el.value !== String(valor)) {
-    el.selectedIndex = 0;
+/* ----------------- BÚSQUEDA ROBUSTA DE CAMPOS -----------------
+   Esta función intenta localizar el valor de un campo (CP/provincia)
+   mediante múltiples estrategias:
+   - ids/names habituales
+   - placeholder
+   - aria-label
+   - label con texto coincidente (por ejemplo "Código Postal", "CP", "Provincia")
+   - elementos cercanos con texto (nodo de texto seguido de input)
+*/
+function findFieldValue(possibleIds = [], labelKeywords = []) {
+  // 1) por id o name
+  for (const id of possibleIds) {
+    const byId = document.getElementById(id);
+    if (byId && String(byId.value || '').trim() !== '') return String(byId.value).trim();
+    const byName = document.querySelector(`[name="${id}"]`);
+    if (byName && String(byName.value || '').trim() !== '') return String(byName.value).trim();
   }
+  // 2) por placeholder o aria-label
+  const inputs = Array.from(document.querySelectorAll('input, select, textarea'));
+  for (const inp of inputs) {
+    const ph = (inp.getAttribute('placeholder') || '').toLowerCase();
+    const al = (inp.getAttribute('aria-label') || '').toLowerCase();
+    for (const kw of labelKeywords) {
+      const k = kw.toLowerCase();
+      if (ph.includes(k) || al.includes(k)) {
+        if (String(inp.value || '').trim() !== '') return String(inp.value).trim();
+      }
+    }
+  }
+  // 3) por label text (label[for]) o input dentro de label
+  const labels = Array.from(document.querySelectorAll('label'));
+  for (const lbl of labels) {
+    const text = (lbl.textContent || '').toLowerCase();
+    for (const kw of labelKeywords) {
+      if (text.includes(kw.toLowerCase())) {
+        // intentar for -> input
+        const forAttr = lbl.getAttribute('for');
+        if (forAttr) {
+          const target = document.getElementById(forAttr);
+          if (target && String(target.value || '').trim() !== '') return String(target.value).trim();
+        }
+        // input dentro del label
+        const inner = lbl.querySelector('input, select, textarea');
+        if (inner && String(inner.value || '').trim() !== '') return String(inner.value).trim();
+        // else maybe sibling input
+        const sibling = lbl.nextElementSibling;
+        if (sibling) {
+          const findInput = sibling.querySelector ? sibling.querySelector('input, select, textarea') : null;
+          if (findInput && String(findInput.value || '').trim() !== '') return String(findInput.value).trim();
+        }
+      }
+    }
+  }
+  // 4) buscar texto en el DOM y tomar el siguiente input (nodo de texto seguido)
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+  let node;
+  const keywordsLower = labelKeywords.map(k => k.toLowerCase());
+  while (node = walker.nextNode()) {
+    const txt = node.nodeValue.trim().toLowerCase();
+    if (!txt) continue;
+    for (const kw of keywordsLower) {
+      if (txt.includes(kw)) {
+        // intentar encontrar input cercano (subiendo o siguiente sibling)
+        const parent = node.parentElement;
+        if (!parent) continue;
+        // sibling after
+        let next = parent.nextElementSibling;
+        while (next) {
+          const inp = next.querySelector ? next.querySelector('input, select, textarea') : null;
+          if (inp && String(inp.value || '').trim() !== '') return String(inp.value).trim();
+          next = next.nextElementSibling;
+        }
+        // buscar dentro del parent
+        const inpInside = parent.querySelector ? parent.querySelector('input, select, textarea') : null;
+        if (inpInside && String(inpInside.value || '').trim() !== '') return String(inpInside.value).trim();
+      }
+    }
+  }
+  return "";
 }
 
-function setChecked(id, valor) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.checked = !!valor;
-}
-
-/* --- SESSIONS MANAGEMENT --- */
+/* ----------------- Sessions (líneas) ----------------- */
 let sessionContainer = null;
 let sessionCounter = 0;
 
 function createSessionLine(data = {}, focus = false) {
   sessionCounter++;
-  if (data && data.default) {
-    const el = document.querySelector('.session-line[data-default="true"]');
-    if (el) el.dataset._tracked = "true";
-    return el;
-  }
-
   const div = document.createElement("div");
   div.className = "session-line";
   div.dataset._id = `session-${sessionCounter}`;
-
   div.innerHTML = `
     <div class="inline-4">
       <label>Cantidad
         <select class="session-cantidad">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5</option>
-          <option value="6">6</option>
-          <option value="7">7</option>
-          <option value="8">8</option>
-          <option value="9">9</option>
-          <option value="10">10</option>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+          <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
         </select>
       </label>
       <label>Importe Unitario (€)
@@ -179,9 +206,7 @@ function createSessionLine(data = {}, focus = false) {
       recalcularTotales();
       checkAndPromptForNewLine(div);
     });
-    // ensure editable
-    i.disabled = false;
-    i.readOnly = false;
+    i.disabled = false; i.readOnly = false;
   });
 
   div.querySelector('.remove-session').addEventListener('click', () => {
@@ -193,7 +218,6 @@ function createSessionLine(data = {}, focus = false) {
   if (focus) setTimeout(() => div.querySelector('.session-importe')?.focus(), 80);
   return div;
 }
-
 function getAllSessionLines() {
   const arr = [];
   const defaultEl = document.querySelector('.session-line[data-default="true"]');
@@ -214,7 +238,6 @@ function getAllSessionLines() {
   });
   return arr;
 }
-
 async function checkAndPromptForNewLine(lineEl) {
   const lines = Array.from(document.querySelectorAll('#sessionLines .session-line'));
   if (!lines.length || lines[lines.length - 1] !== lineEl) return;
@@ -233,29 +256,25 @@ async function checkAndPromptForNewLine(lineEl) {
   }
 }
 
-/* --- CÁLCULOS --- */
+/* ----------------- Cálculos ----------------- */
 function recalcularTotales() {
   const sessions = getAllSessionLines();
   let baseTotalSesiones = 0;
-  
-  // Sumamos el total de TODAS las sesiones (Cantidad * Importe)
   sessions.forEach(s => {
     baseTotalSesiones += (Number(s.cantidad) || 0) * (Number(s.importe) || 0);
   });
 
   let baseFinal = baseTotalSesiones;
 
-  const despIncluido = document.getElementById("desplazamientoIncluido").checked;
-  const alojaIncluido = document.getElementById("alojamientoIncluido").checked;
-  const esReserva = document.getElementById("reserva50").checked;
+  const despIncluido = document.getElementById("desplazamientoIncluido")?.checked;
+  const alojaIncluido = document.getElementById("alojamientoIncluido")?.checked;
+  const esReserva = document.getElementById("reserva50")?.checked;
 
-  // Mostrar/Ocultar campos extras
   const despFields = document.getElementById("desplazamientoFields");
   if (despFields) despFields.style.display = despIncluido ? "grid" : "none";
   const alojFields = document.getElementById("alojamientoFields");
   if (alojFields) alojFields.style.display = alojaIncluido ? "block" : "none";
 
-  // Sumar extras a la base si existen
   if (despIncluido) {
     baseFinal += obtenerNumero("kmDesplazamiento") * (obtenerNumero("precioPorKm") || 0.19);
   }
@@ -263,19 +282,17 @@ function recalcularTotales() {
     baseFinal += obtenerNumero("costoAlojamiento");
   }
 
-  // APLICAR RESERVA 50% SOBRE EL TOTAL DE LA BASE (Sesiones + Extras)
   if (esReserva) {
     baseFinal = baseFinal / 2;
   }
 
   const pctRetenido = obtenerNumero("ivaRetenido") / 100;
   const pctAplicado = obtenerNumero("ivaAplicado") / 100;
-  
+
   const retenido = baseFinal * pctRetenido;
   const aplicado = baseFinal * pctAplicado;
   const total = baseFinal - retenido + aplicado;
 
-  // Actualizar la interfaz
   const subtotalEl = document.getElementById("subtotal");
   if (subtotalEl) subtotalEl.textContent = formatoEuro(baseFinal);
   const ivaRetEl = document.getElementById("ivaRetenidoImporte");
@@ -286,7 +303,7 @@ function recalcularTotales() {
   if (totalEl) totalEl.textContent = formatoEuro(total);
 }
 
-/* --- FIRESTORE: CLIENTES & CUENTAS --- */
+/* ----------------- Firestore: clientes & cuentas ----------------- */
 function escucharClientes() {
   db.collection("clientes").orderBy("nombre").onSnapshot(snapshot => {
     const sel = document.getElementById("clientesGuardados");
@@ -301,7 +318,6 @@ function escucharClientes() {
     if (valorActual) sel.value = valorActual;
   });
 }
-
 function rellenarCliente() {
   const id = document.getElementById("clientesGuardados").value;
   if (!id) return;
@@ -309,15 +325,13 @@ function rellenarCliente() {
     if (!doc.exists) return;
     const d = doc.data();
     setValor("clienteNombre", d.nombre); setValor("clienteEmail", d.email);
-    setValor("clienteDireccion", d.direccion); setValor("clienteCP", d.cp);
+    setValor("clienteDireccion", d.direccion); setValor("clienteCP", d.cp || '');
     setValor("clienteLocalidad", d.localidad); setValor("clienteProvincia", d.provincia);
     setValor("clienteTelefono", d.telefono); setValor("clienteTipoDoc", d.tipoDoc);
     setValor("clienteDoc", d.doc);
-    // Ensure recalculation after loading
     setTimeout(recalcularTotales, 60);
   });
 }
-
 async function guardarCliente() {
   const nombre = obtenerTexto("clienteNombre").trim();
   if (!nombre) { showToast("Escribe el nombre del cliente", "red"); return; }
@@ -333,7 +347,6 @@ async function guardarCliente() {
     else { const ref = await db.collection("clientes").add(datos); if (sel) sel.value = ref.id; showToast("Cliente guardado ✅"); }
   } catch (e) { showToast("Error al guardar cliente", "red"); }
 }
-
 async function eliminarCliente() {
   const sel = document.getElementById("clientesGuardados");
   if (!sel || !sel.value) { showToast("Selecciona un cliente", "red"); return; }
@@ -343,7 +356,6 @@ async function eliminarCliente() {
   ["clienteNombre", "clienteEmail", "clienteDireccion", "clienteCP", "clienteLocalidad", "clienteProvincia", "clienteTelefono", "clienteDoc"].forEach(i => setValor(i, ""));
   showToast("Cliente eliminado 🗑️", "red");
 }
-
 function escucharCuentas() {
   db.collection("cuentas").onSnapshot(snapshot => {
     const sel = document.getElementById("cuentasGuardadas");
@@ -358,24 +370,22 @@ function escucharCuentas() {
     if (valorActual) sel.value = valorActual;
   });
 }
-
 async function guardarCuenta() {
   const iban = obtenerTexto("cuentaActual").trim();
   if (!iban) { showToast("Escribe un IBAN", "red"); return; }
   await db.collection("cuentas").add({ iban });
   showToast("Cuenta guardada ✅");
 }
-
 async function eliminarCuenta() {
   const iban = obtenerTexto("cuentaActual").trim();
-  if (!iban) { showToast("Selecciona una cuenta", "red"); return; }
+  if (iban === '') { showToast("Selecciona una cuenta", "red"); return; }
   if (!await confirmarToast("¿Eliminar esta cuenta?")) return;
   const snap = await db.collection("cuentas").where("iban", "==", iban).get();
   snap.forEach(doc => doc.ref.delete());
   showToast("Cuenta eliminada 🗑️", "red");
 }
 
-/* --- NUMERACIÓN DE FACTURAS --- */
+/* ----------------- Numeración ----------------- */
 async function asignarNumeroFactura() {
   try {
     const snap = await db.collection("facturas").orderBy("timestamp", "desc").limit(1).get();
@@ -387,14 +397,16 @@ async function asignarNumeroFactura() {
       if (!isNaN(num)) siguiente = num + 1;
     }
     setValor("numeroFactura", `${siguiente}-${new Date().getFullYear()}`);
-    bloquearNumeroFactura();
+    const el = document.getElementById("numeroFactura");
+    if (el) { el.readOnly = true; el.style.opacity = "0.6"; el.style.cursor = "not-allowed"; }
   } catch (e) {
     setValor("numeroFactura", `6-${new Date().getFullYear()}`);
-    bloquearNumeroFactura();
+    const el = document.getElementById("numeroFactura");
+    if (el) { el.readOnly = true; el.style.opacity = "0.6"; el.style.cursor = "not-allowed"; }
   }
 }
 
-/* --- HISTORIAL DE FACTURAS --- */
+/* ----------------- Historial ----------------- */
 async function guardarOActualizarHistorial() {
   const numero = obtenerTexto("numeroFactura").trim();
   const cliente = obtenerTexto("clienteNombre").trim();
@@ -402,17 +414,17 @@ async function guardarOActualizarHistorial() {
 
   const sessions = getAllSessionLines().map(s => ({ cantidad: s.cantidad, importe: s.importe, dia: s.dia, sala: s.sala }));
   const datos = {
-    numero, cliente, total: document.getElementById("total").textContent,
+    numero, cliente, total: document.getElementById("total")?.textContent || '',
     fecha: obtenerTexto("fechaFactura"), nif: obtenerTexto("emisorNif"),
     email: obtenerTexto("clienteEmail"), direccion: obtenerTexto("clienteDireccion"),
     cp: obtenerTexto("clienteCP"), localidad: obtenerTexto("clienteLocalidad"),
     provincia: obtenerTexto("clienteProvincia"), telefono: obtenerTexto("clienteTelefono"),
     tipoDoc: obtenerTexto("clienteTipoDoc"), doc: obtenerTexto("clienteDoc"),
     descripcion: obtenerTexto("descripcionSesion"), ivaRetenido: obtenerNumero("ivaRetenido"),
-    ivaAplicado: obtenerNumero("ivaAplicado"), desplazamiento: document.getElementById("desplazamientoIncluido").checked,
-    reserva50: document.getElementById("reserva50").checked,
+    ivaAplicado: obtenerNumero("ivaAplicado"), desplazamiento: document.getElementById("desplazamientoIncluido")?.checked,
+    reserva50: document.getElementById("reserva50")?.checked,
     km: obtenerNumero("kmDesplazamiento"), precioPorKm: obtenerNumero("precioPorKm"),
-    alojamiento: document.getElementById("alojamientoIncluido").checked,
+    alojamiento: document.getElementById("alojamientoIncluido")?.checked,
     costoAlojamiento: obtenerNumero("costoAlojamiento"), cuenta: obtenerTexto("cuentaActual"),
     observaciones: obtenerTexto("observaciones"), sessions,
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
@@ -424,7 +436,6 @@ async function guardarOActualizarHistorial() {
     else { await db.collection("facturas").add(datos); showToast("Factura guardada ✅"); await asignarNumeroFactura(); }
   } catch (e) { showToast("Error al guardar factura", "red"); }
 }
-
 async function mostrarHistorial() {
   const modal = document.getElementById("modalHistorial");
   if (!modal) return;
@@ -457,36 +468,39 @@ async function mostrarHistorial() {
   });
 }
 
-/* --- Helpers to ensure fields are editable and listeners attached --- */
-
+/* ----------------- Helpers UI ----------------- */
+function getFacturaEditandoId() {
+  const val = document.getElementById("facturaEditandoIdHidden")?.value;
+  return val && val.trim() !== "" ? val.trim() : null;
+}
+function setFacturaEditandoId(id) {
+  window._facturaEditandoId = id;
+  const el = document.getElementById("facturaEditandoIdHidden");
+  if (el) el.value = id || "";
+}
 function enableAllFormFields(keepNumeroBlockedIfEditing = true) {
-  // habilita TODOS los inputs/selects/textarea dentro de .card
   document.querySelectorAll(".card input, .card textarea, .card select").forEach(el => {
     if (!el) return;
-    // quitar atributos que puedan bloquear
     el.disabled = false;
     el.readOnly = false;
     el.removeAttribute('readonly');
     el.removeAttribute('disabled');
   });
-  // si estamos editando y queremos bloquear número, aplicar bloqueo al final
   const editId = getFacturaEditandoId();
+  const el = document.getElementById("numeroFactura");
   if (keepNumeroBlockedIfEditing && editId) {
-    bloquearNumeroFactura();
+    if (el) { el.readOnly = true; el.style.opacity = "0.6"; el.style.cursor = "not-allowed"; }
   } else {
-    desbloquearNumeroFactura();
+    if (el) { el.readOnly = false; el.style.opacity = "1"; el.style.cursor = "text"; }
   }
 }
-
 function attachListenersToDefaultRow(defaultWrapper) {
   if (!defaultWrapper) return;
   const inputs = defaultWrapper.querySelectorAll('input, select');
   inputs.forEach(i => {
-    // remove duplicates by cloning (safe approach)
     const newEl = i.cloneNode(true);
     i.parentNode.replaceChild(newEl, i);
   });
-  // re-query
   const reInputs = defaultWrapper.querySelectorAll('input, select');
   reInputs.forEach(i => {
     i.disabled = false;
@@ -498,22 +512,19 @@ function attachListenersToDefaultRow(defaultWrapper) {
   });
 }
 
-/* --- CARGAR FACTURA (editable) --- */
+/* ----------------- Cargar / Crear Factura ----------------- */
 function cargarFactura(id, d) {
   setFacturaEditandoId(id);
-  // Reset session counter to avoid duplicados de IDs
   sessionCounter = 0;
-
-  // Habilitar todos los campos primero (dejaremos número bloqueado si corresponde)
   enableAllFormFields(true);
 
-  // Bloquear número si estamos editando (mantener comportamiento deseado)
-  if (id) bloquearNumeroFactura(); else desbloquearNumeroFactura();
+  const numEl = document.getElementById("numeroFactura");
+  if (id) { if (numEl) { numEl.readOnly = true; numEl.style.opacity = "0.6"; numEl.style.cursor = "not-allowed"; } }
+  else { if (numEl) { numEl.readOnly = false; numEl.style.opacity = "1"; numEl.style.cursor = "text"; } }
 
-  // Poner valores básicos
   setValor("numeroFactura", d.numero); setValor("fechaFactura", d.fecha || new Date().toISOString().slice(0,10));
   setValor("clienteNombre", d.cliente); setValor("clienteEmail", d.email);
-  setValor("clienteDireccion", d.direccion); setValor("clienteCP", d.cp);
+  setValor("clienteDireccion", d.direccion); setValor("clienteCP", d.cp || '');
   setValor("clienteLocalidad", d.localidad); setValor("clienteProvincia", d.provincia);
   setValor("clienteTelefono", d.telefono); setValor("clienteTipoDoc", d.tipoDoc);
   setValor("clienteDoc", d.doc); setValor("descripcionSesion", d.descripcion || "");
@@ -524,10 +535,8 @@ function cargarFactura(id, d) {
   setValor("costoAlojamiento", d.costoAlojamiento || "");
   setValor("cuentaActual", d.cuenta || ""); setValor("observaciones", d.observaciones || "");
 
-  // Reconstruir líneas: limpiamos contenedor y añadimos fila default y resto de líneas
   if (sessionContainer) sessionContainer.innerHTML = '';
 
-  // Default row (IDs: cantidad, importe, diaSesion, sala)
   const defaultWrapper = document.createElement('div');
   defaultWrapper.className = 'session-line';
   defaultWrapper.dataset.default = "true";
@@ -538,10 +547,8 @@ function cargarFactura(id, d) {
     <label>Sala / Evento<input type="text" id="sala" placeholder="Ej: Pub, Discoteca..."></label>
   </div>`;
   sessionContainer.appendChild(defaultWrapper);
-  // Attach listeners + ensure editable
   attachListenersToDefaultRow(defaultWrapper);
 
-  // setear valores de la primera línea si existen
   if (d.sessions && d.sessions.length) {
     const first = d.sessions[0];
     setTimeout(() => {
@@ -551,24 +558,16 @@ function cargarFactura(id, d) {
       setValor('sala', first.sala || '');
       recalcularTotales();
     }, 30);
-    // agregar el resto de líneas como session-line editables
-    for (let i = 1; i < d.sessions.length; i++) {
-      // createSessionLine ya añade listeners y deja editables
-      createSessionLine(d.sessions[i]);
-    }
+    for (let i = 1; i < d.sessions.length; i++) createSessionLine(d.sessions[i]);
   } else {
-    // no hay sesiones guardadas -> dejar default vacía
     setTimeout(recalcularTotales, 30);
   }
 
-  // Asegurarse que todos los inputs están habilitados tras reconstruir DOM
   enableAllFormFields(true);
 
-  // re-attach event listeners comunes (por si los IDs se han recreado)
   ['cantidad','importe','diaSesion','sala'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      // remove duplicates by cloning then add
       const clone = el.cloneNode(true);
       el.parentNode.replaceChild(clone, el);
       clone.addEventListener('input', recalcularTotales);
@@ -577,10 +576,8 @@ function cargarFactura(id, d) {
 
   setValor("ivaRetenido", d.ivaRetenido || 0); setValor("ivaAplicado", d.ivaAplicado || 10);
 
-  // recalc totals and focus client section
   recalcularTotales();
 
-  // Scroll y focus en nombre cliente
   const seccion = document.getElementById("seccionCliente");
   if (seccion) {
     seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -591,11 +588,11 @@ function cargarFactura(id, d) {
   }
 }
 
-/* --- IMPRESIÓN PDF (A4) - sin aviso superior; TITULO siempre 'FACTURA' --- */
+/* ----------------- Preparar impresión (usa extracción robusta) ----------------- */
 function prepararImpresion() {
   try {
-    const esReserva = document.getElementById("reserva50").checked;
-    const titulo = "FACTURA"; // siempre FACTURA, sin texto reserva arriba
+    const esReserva = document.getElementById("reserva50")?.checked;
+    const titulo = "FACTURA";
 
     const sessions = getAllSessionLines();
     let sessionsHtml = '';
@@ -605,45 +602,113 @@ function prepararImpresion() {
         <td style="padding:6px;border:1px solid #e6e6e6;">${s.sala || ''}</td>
         <td style="padding:6px;border:1px solid #e6e6e6;text-align:right;">${s.cantidad}</td>
         <td style="padding:6px;border:1px solid #e6e6e6;text-align:right;">${formatoEuro(s.importe)}</td>
-        <td style="padding:6px;border:1px solid #e6e6e6;text-align:right;">${formatoEuro(s.cantidad * s.importe)}</td>
+        <td style="padding:6px;border:1px solid #e6e6e6;text-align:right;">${formatoEuro((Number(s.cantidad)||0) * (Number(s.importe)||0))}</td>
       </tr>`;
     });
 
-    // Observaciones: añadir texto de reserva en rojo vivo si está marcada
     const observacionesOriginal = obtenerTexto("observaciones");
     const observacionesReserva = esReserva ? `<span style="color:#ff0000; font-weight:bold;">⚠️ FACTURA DE RESERVA - 50% ADELANTO.</span> ` : "";
     const observacionesFinal = observacionesReserva + observacionesOriginal;
 
-    const contenido = `
-      <div class="print-header">
-        <div>
-          <h1 style="margin:0;font-size:22px;color:#1e40af;letter-spacing:1px;">KEVIN CHECA</h1>
-          <div style="font-weight:800;margin-top:4px;font-size:16px;color:#1e293b;">${titulo}</div>
-        </div>
-        <img src="${document.querySelector(".logo-kevin")?.src || ''}" class="print-logo" alt="logo">
-      </div>
+    // Intentar leer CP/provincia con estrategias múltiples
+    const clienteDireccion = obtenerTexto("clienteDireccion") || "";
+    const clienteLocalidad = obtenerTexto("clienteLocalidad") || "";
+    const clienteCP = (function(){
+      // ids comunes y palabras para localizar
+      return findFieldValue(['clienteCP','clienteCodigoPostal','clientePostal','cpCliente','cp','codigoPostalCliente'], ['Código Postal','CP','postal','código postal','cp']);
+    })();
+    const clienteProvincia = (function(){
+      return findFieldValue(['clienteProvincia','provinciaCliente','provincia','prov'], ['Provincia','provincia','region']);
+    })();
 
+    const emisorDireccion = obtenerTexto("emisorDireccion") || "";
+    const emisorLocalidad = obtenerTexto("emisorLocalidad") || "";
+    const emisorCP = (function(){
+      return findFieldValue(['emisorCP','emisorCodigoPostal','emisorPostal'], ['Código Postal','CP','postal','código postal','cp']);
+    })();
+    const emisorProvincia = (function(){
+      return findFieldValue(['emisorProvincia','provinciaEmisor','provincia'], ['Provincia','provincia','region']);
+    })();
+
+    // Cabecera simplificada
+    const headerHtml = `
+      <div class="print-header">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <img src="${document.querySelector(".logo-kevin")?.src || ''}" class="print-logo" alt="logo">
+          <div style="font-size:22px;font-weight:800;color:#000000;letter-spacing:1px;">KEVIN CHECA</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:700;color:#000000;">${titulo}</div>
+          <div style="font-size:12px;color:#334155;margin-top:6px;">Factura: ${obtenerTexto("numeroFactura") || ''}</div>
+          <div style="font-size:12px;color:#334155;">Fecha: ${obtenerTexto("fechaFactura") || ''}</div>
+        </div>
+      </div>
+    `;
+
+const emisorCampos = [
+  { label: 'NOMBRE', value: obtenerTexto('emisorNombre') },
+  { label: 'NIF', value: obtenerTexto('emisorNif') },
+  { label: 'DIRECCIÓN', value: emisorDireccion },
+  { label: 'LOCALIDAD', value: emisorLocalidad },
+  { label: 'PROVINCIA', value: emisorProvincia },
+  { label: 'CÓDIGO POSTAL', value: emisorCP },
+  { label: 'EMAIL', value: obtenerTexto('emisorEmail') },
+  { label: 'TELÉFONO', value: obtenerTexto('emisorTelefono') },
+  { label: 'IBAN', value: obtenerTexto('emisorIBAN') }
+];
+    const emisorHtmlLines = emisorCampos.filter(c => c.value && String(c.value).trim() !== '').map(c => `<div><div class="print-label">${c.label}</div><div class="print-value">${c.value}</div></div>`).join('');
+
+    const contenido = `
+      ${headerHtml}
       <div class="print-card">
         <div class="print-section-title">DATOS DEL EMISOR</div>
         <div class="print-grid-3">
-          <div><div class="print-label">NOMBRE</div><div class="print-value">${obtenerTexto("emisorNombre")}</div></div>
-          <div><div class="print-label">NIF</div><div class="print-value">${obtenerTexto("emisorNif")}</div></div>
-          <div><div class="print-label">C.P.</div><div class="print-value">${obtenerTexto("emisorCP")}</div></div>
+          ${emisorHtmlLines || `<div><div class="print-label">NOMBRE</div><div class="print-value">${obtenerTexto("emisorNombre")}</div></div>
+          <div><div class="print-label">DIRECCIÓN</div><div class="print-value">${emisorDireccion}</div></div>
+          <div><div class="print-label">LOCALIDAD / PROVINCIA</div><div class="print-value">${emisorLocalidad ? emisorLocalidad : ''}${emisorProvincia ? ' — ' + emisorProvincia : ''}${emisorCP ? ' (' + emisorCP + ')' : ''}</div></div>`}
         </div>
-        <div style="margin-top:8px; display:flex; gap:20px;">
-          <div><div class="print-label">Nº FACTURA</div><div class="print-value" style="font-weight:800; color:#1e40af;">${obtenerTexto("numeroFactura")}</div></div>
-          <div><div class="print-label">FECHA EMISIÓN</div><div class="print-value">${formatDateForPrint(obtenerTexto("fechaFactura"))}</div></div>
+        <div style="margin-top:8px; display:flex; gap:20px; flex-wrap:wrap;">
+          ${obtenerTexto("emisorNif") ? `<div><div class="print-label">NIF</div><div class="print-value">${obtenerTexto("emisorNif")}</div></div>` : ''}
+          ${obtenerTexto("emisorEmail") ? `<div><div class="print-label">EMAIL</div><div class="print-value">${obtenerTexto("emisorEmail")}</div></div>` : ''}
+          ${obtenerTexto("emisorTelefono") ? `<div><div class="print-label">TELÉFONO</div><div class="print-value">${obtenerTexto("emisorTelefono")}</div></div>` : ''}
+          ${obtenerTexto("emisorIBAN") ? `<div><div class="print-label">IBAN</div><div class="print-value">${obtenerTexto("emisorIBAN")}</div></div>` : ''}
         </div>
       </div>
 
       <div class="print-card">
         <div class="print-section-title">DATOS DEL CLIENTE</div>
-        <div class="print-grid-2">
-          <div><div class="print-label">NOMBRE / RAZÓN SOCIAL</div><div class="print-value" style="font-weight:700;">${obtenerTexto("clienteNombre")}</div></div>
-          <div><div class="print-label">EMAIL</div><div class="print-value">${obtenerTexto("clienteEmail")}</div></div>
+
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;color:#64748b;">NOMBRE / RAZÓN SOCIAL</div>
+          <div style="font-weight:700;font-size:13px;color:#000000;">${obtenerTexto("clienteNombre") || ''}</div>
         </div>
-        <div style="margin-top:8px;"><div class="print-label">DIRECCIÓN Y LOCALIDAD</div><div class="print-value">${obtenerTexto("clienteDireccion")} - ${obtenerTexto("clienteLocalidad")} (${obtenerTexto("clienteCP")})</div></div>
-        <div style="margin-top:8px;"><div class="print-label">${obtenerTexto("clienteTipoDoc")}</div><div class="print-value">${obtenerTexto("clienteDoc")}</div></div>
+
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;color:#64748b;">EMAIL</div>
+          <div style="font-weight:600;color:#000000;">${obtenerTexto("clienteEmail") || ''}</div>
+        </div>
+
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#64748b;">DIRECCIÓN</div>
+          <div style="font-weight:600;color:#000000;">${clienteDireccion || ''}</div>
+        </div>
+
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;color:#64748b;">LOCALIDAD / PROVINCIA</div>
+          <div style="font-weight:600;color:#000000;">
+            ${clienteLocalidad || ''}${ clienteProvincia ? ' — ' + clienteProvincia : '' }${ clienteCP ? ' (' + clienteCP + ')' : ''}
+          </div>
+        </div>
+
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#64748b;">${obtenerTexto("clienteTipoDoc") || 'DOCUMENTO'}</div>
+          <div style="font-weight:600;color:#000000;">${obtenerTexto("clienteDoc") || ''}</div>
+        </div>
+
+        <div>
+          <div style="font-size:11px;color:#64748b;">TELÉFONO</div>
+          <div style="font-weight:600;color:#000000;">${obtenerTexto("clienteTelefono") || ''}</div>
+        </div>
       </div>
 
       <div class="print-card">
@@ -661,17 +726,17 @@ function prepararImpresion() {
         </table>
 
         <div class="print-totales" style="margin-top:10px;">
-          <div class="print-total-row"><span>Subtotal:</span><span>${document.getElementById("subtotal").textContent}</span></div>
-          <div class="print-total-row"><span>IVA Retenido (${obtenerNumero("ivaRetenido")}%):</span><span>${document.getElementById("ivaRetenidoImporte").textContent}</span></div>
-          <div class="print-total-row"><span>IVA (${obtenerNumero("ivaAplicado")}%):</span><span>${document.getElementById("ivaImporte").textContent}</span></div>
-          <div class="print-total-row print-total-final" style="margin-top:6px;"><span>TOTAL A PAGAR:</span><span>${document.getElementById("total").textContent}</span></div>
+          <div class="print-total-row"><span>Subtotal:</span><span>${document.getElementById("subtotal")?.textContent || ''}</span></div>
+          <div class="print-total-row"><span>IVA Retenido (${obtenerNumero("ivaRetenido")}%):</span><span>${document.getElementById("ivaRetenidoImporte")?.textContent || ''}</span></div>
+          <div class="print-total-row"><span>IVA (${obtenerNumero("ivaAplicado")}%):</span><span>${document.getElementById("ivaImporte")?.textContent || ''}</span></div>
+          <div class="print-total-row print-total-final" style="margin-top:6px;"><span>TOTAL A PAGAR:</span><span>${document.getElementById("total")?.textContent || ''}</span></div>
         </div>
       </div>
 
       <div class="print-card">
         <div class="print-section-title">DATOS DE PAGO</div>
         <div class="print-label">IBAN</div>
-        <div class="print-value" style="font-weight:800;">${obtenerTexto("cuentaActual")}</div>
+        <div class="print-value" style="font-weight:800;color:#000000;">${obtenerTexto("cuentaActual")}</div>
         <div style="margin-top:8px;" class="print-label">OBSERVACIONES</div>
         <div class="print-value">${observacionesFinal}</div>
       </div>
@@ -695,23 +760,23 @@ function prepararImpresion() {
               padding: 12mm;
               box-sizing: border-box;
               background: #ffffff;
-              color: #1e293b;
+              color: #000000;
               font-family: Arial, Helvetica, sans-serif;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
-            .print-header { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #3b82f6; padding-bottom:8px; margin-bottom:10px; }
-            .print-logo { width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid #3b82f6; }
+            .print-header { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #1f2937; padding-bottom:8px; margin-bottom:10px; }
+            .print-logo { width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid #1f2937; }
             .print-card { background:#f8fafc; border:1px solid #e2e8f0; padding:10px; margin-bottom:8px; border-radius:6px; }
-            .print-section-title { font-size:10px; font-weight:800; color:#1e40af; margin-bottom:6px; }
+            .print-section-title { font-size:10px; font-weight:800; color:#000000; margin-bottom:6px; }
             .print-grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
             .print-grid-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; }
-            .print-label { font-size:9px; color:#64748b; text-transform:uppercase; }
-            .print-value { font-size:12px; margin-top:2px; color:#0f172a; }
+            .print-label { font-size:9px; color:#334155; text-transform:uppercase; }
+            .print-value { font-size:12px; margin-top:2px; color:#000000; }
             .print-totales { background:#f1f5f9; padding:8px; border-radius:4px; margin-top:8px; }
             .print-total-row { display:flex; justify-content:space-between; font-size:11px; padding:2px 0; color:#475569; }
-            .print-total-final { border-top:2px solid #3b82f6; font-size:13px; font-weight:800; color:#f97316; padding-top:6px; margin-top:6px; }
-            table { width:100%; border-collapse:collapse; font-size:12px; }
+            .print-total-final { border-top:2px solid #1f2937; font-size:13px; font-weight:800; color:#111827; padding-top:6px; margin-top:6px; }
+            table { width:100%; border-collapse:collapse; font-size:12px; color:#000; }
             th, td { border:1px solid #e6e6e6; padding:6px; }
             .print-footer { text-align:center; font-size:10px; color:#64748b; margin-top:8px; border-top:1px solid #e2e8f0; padding-top:8px; }
             @media print {
@@ -734,22 +799,15 @@ function prepararImpresion() {
       </html>
     `;
 
-    // Intentar abrir ventana normal
     let ventana = null;
-    try {
-      ventana = window.open("", "_blank");
-    } catch (e) {
-      ventana = null;
-    }
+    try { ventana = window.open("", "_blank"); } catch (e) { ventana = null; }
 
     if (ventana && ventana.document) {
-      // Escribimos directamente
       ventana.document.open();
       ventana.document.write(html);
       ventana.document.close();
       showToast("Abriendo vista de impresión...", "blue", 3000);
     } else {
-      // Fallback si popup bloqueado: crear blob y abrir su URL
       try {
         const blob = new Blob([html], { type: "text/html" });
         const url = URL.createObjectURL(blob);
@@ -766,26 +824,24 @@ function prepararImpresion() {
   }
 }
 
-/* --- INICIALIZACIÓN Y EVENTOS --- */
+/* ----------------- Inicialización y Bindings ----------------- */
 window.addEventListener("DOMContentLoaded", async () => {
   sessionContainer = document.getElementById("sessionLines");
-  document.getElementById("fechaFactura").value = new Date().toISOString().slice(0, 10);
+  if (document.getElementById("fechaFactura")) document.getElementById("fechaFactura").value = new Date().toISOString().slice(0, 10);
 
-  // listeners Firestore
   escucharClientes(); escucharCuentas();
   await asignarNumeroFactura();
 
-  // btn editar número
   const btnEditarNumero = document.getElementById("btnEditarNumero");
   if (btnEditarNumero) {
     btnEditarNumero.onclick = () => {
       const num = document.getElementById("numeroFactura");
-      if (num.readOnly) { desbloquearNumeroFactura(); num.focus(); } else bloquearNumeroFactura();
+      if (num.readOnly) { num.readOnly = false; num.style.opacity = "1"; num.style.cursor = "text"; num.focus(); } else { num.readOnly = true; num.style.opacity = "0.6"; num.style.cursor = "not-allowed"; }
     };
   }
 
   // crear línea por defecto si no existe
-  if (!document.querySelector('.session-line[data-default="true"]')) {
+  if (!document.querySelector('.session-line[data-default="true"]') && sessionContainer) {
     const defaultWrapper = document.createElement('div');
     defaultWrapper.className = 'session-line';
     defaultWrapper.dataset.default = "true";
@@ -796,11 +852,9 @@ window.addEventListener("DOMContentLoaded", async () => {
       <label>Sala / Evento<input type="text" id="sala" placeholder="Ej: Pub, Discoteca..."></label>
     </div>`;
     sessionContainer.appendChild(defaultWrapper);
-    // attach listeners to default row inputs
     attachListenersToDefaultRow(defaultWrapper);
   }
 
-  // eventos principales
   const btnAgregar = document.getElementById('btnAgregarSesionManual');
   if (btnAgregar) btnAgregar.onclick = () => createSessionLine({}, true);
 
@@ -812,8 +866,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   const nuevaBtn = document.getElementById("btnNuevaFacturaFixed");
   if (nuevaBtn) {
     nuevaBtn.onclick = async () => {
-      setFacturaEditandoId(null); desbloquearNumeroFactura();
-      // limpiar inputs no emisores
+      setFacturaEditandoId(null);
+      const num = document.getElementById("numeroFactura");
+      if (num) { num.readOnly = false; num.style.opacity = "1"; num.style.cursor = "text"; }
       document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor']), .card select:not([id^='emisor'])").forEach(i => {
         if (i.type === 'checkbox') i.checked = false;
         else i.value = "";
@@ -822,8 +877,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         i.removeAttribute('disabled');
         i.removeAttribute('readonly');
       });
-      // reset sesiones
-      if (sessionContainer) { sessionContainer.innerHTML = ''; 
+      if (sessionContainer) {
+        sessionContainer.innerHTML = '';
         sessionCounter = 0;
         const defaultWrapper = document.createElement('div');
         defaultWrapper.className = 'session-line'; defaultWrapper.dataset.default = "true";
@@ -834,12 +889,11 @@ window.addEventListener("DOMContentLoaded", async () => {
           <label>Sala / Evento<input type="text" id="sala" placeholder="Ej: Pub, Discoteca..."></label>
         </div>`;
         sessionContainer.appendChild(defaultWrapper);
-        // attach listeners
         attachListenersToDefaultRow(defaultWrapper);
       }
       recalcularTotales(); await asignarNumeroFactura();
       const seccion = document.getElementById("seccionCliente");
-      if (seccion) { seccion.scrollIntoView({ behavior: 'smooth' }); setTimeout(() => document.getElementById("clienteNombre").focus(), 600); }
+      if (seccion) { seccion.scrollIntoView({ behavior: 'smooth' }); setTimeout(() => document.getElementById("clienteNombre")?.focus(), 600); }
     };
   }
 
@@ -871,7 +925,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (btnVerHistorial) btnVerHistorial.onclick = mostrarHistorial;
 
   const btnCerrarHistorial = document.getElementById("btnCerrarHistorial");
-  if (btnCerrarHistorial) btnCerrarHistorial.onclick = () => document.getElementById("modalHistorial").classList.remove("show");
+  if (btnCerrarHistorial) btnCerrarHistorial.onclick = () => document.getElementById("modalHistorial")?.classList.remove("show");
 
   const despEl = document.getElementById("desplazamientoIncluido");
   if (despEl) despEl.onchange = recalcularTotales;
