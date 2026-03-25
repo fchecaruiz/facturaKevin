@@ -17,21 +17,31 @@
     <!-- EMISOR -->
     <section class="card">
       <h2>MIS DATOS (EMISOR)</h2>
-      <div class="inline-2">
+      <div class="inline-3">
         <label>Nombre / Razón Social <input type="text" id="emisorNombre" value="KEVIN CHECA"></label>
         <label>NIF <input type="text" id="emisorNif" value="21155464-H"></label>
+        <label>Dirección <input type="text" id="emisorDireccion" value="C/ Reyes Católicos nº 1"></label>
       </div>
       <div class="inline-3">
-        <label>Dirección <input type="text" id="emisorDireccion" value="C/ Reyes Católicos nº 1"></label>
         <label>Localidad <input type="text" id="emisorLocalidad" value="Olvega"></label>
         <label>Provincia <input type="text" id="emisorProvincia" value="Soria"></label>
-      </div>
-      <div class="inline-3">
         <label>C.P. <input type="text" id="emisorCP" value="42110"></label>
-        <label>Email <input type="email" id="emisorEmail" value="kevinchecafraile@gmail.com"></label>
-        <label>Fecha Factura <input type="date" id="fechaFactura"></label>
       </div>
-      <label>Nº Factura <input type="text" id="numeroFactura" placeholder="Ej: 1-2026"></label>
+
+      <!-- Nº FACTURA y FECHA (misma línea) -->
+      <div class="inline-2">
+        <label style="display:flex;flex-direction:column;gap:8px;">
+          Nº Factura
+          <div class="input-with-btn">
+            <input type="text" id="numeroFactura" placeholder="Ej: 6-2026">
+            <button id="btnEditarNumero" type="button" class="edit-num-btn" title="Editar número">✎</button>
+          </div>
+        </label>
+
+        <label>Fecha Factura
+          <input type="date" id="fechaFactura">
+        </label>
+      </div>
     </section>
 
     <!-- CLIENTE -->
@@ -108,7 +118,6 @@
         <!-- nuevas líneas serán añadidas aquí dinámicamente -->
       </div>
 
-      <!-- nota / botón manual: (opcional) -->
       <div class="line-actions" style="display:flex; gap:8px; align-items:center;">
         <button id="btnAgregarSesionManual" class="btn-purple" type="button">+ Añadir sesión</button>
         <small style="color:var(--text-muted); font-size:0.85rem;">Puedes añadir varias sesiones para la misma factura</small>

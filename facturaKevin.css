@@ -118,6 +118,19 @@ textarea { resize: vertical; min-height: 80px; }
 .inline-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .inline-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 
+/* ===== INPUT WITH BUTTON (numero editable) ===== */
+.input-with-btn { display:flex; gap:8px; align-items:center; }
+.input-with-btn input[type="text"] { flex:1; }
+.edit-num-btn {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.edit-num-btn:active { transform: scale(0.98); }
+
 /* ===== CHECKBOX ROW ===== */
 .row-label {
   flex-direction: row !important;

@@ -27,6 +27,7 @@ function setFacturaEditandoId(id) {
 /* --- BLOQUEO NÚMERO FACTURA --- */
 function bloquearNumeroFactura() {
   const el = document.getElementById("numeroFactura");
+  if (!el) return;
   el.readOnly = true;
   el.style.opacity = "0.6";
   el.style.cursor = "not-allowed";
@@ -34,6 +35,7 @@ function bloquearNumeroFactura() {
 
 function desbloquearNumeroFactura() {
   const el = document.getElementById("numeroFactura");
+  if (!el) return;
   el.readOnly = false;
   el.style.opacity = "1";
   el.style.cursor = "text";
@@ -109,6 +111,14 @@ function formatoEuro(v) {
   return (Number(v) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
+function formatDateForPrint(d) {
+  if (!d) return '';
+  // aceptamos YYYY-MM-DD o Date
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 function obtenerNumero(id) {
   const el = document.getElementById(id);
   if (!el) return 0;
@@ -135,15 +145,13 @@ function setChecked(id, valor) {
 }
 
 /* --- SESSIONS MANAGEMENT (multi-line) --- */
-const sessionContainer = document.getElementById ? document.getElementById("sessionLines") : null;
+let sessionContainer = null;
 let sessionCounter = 0;
 
 function createSessionLine(data = {}, focus = false) {
-  // data: { cantidad, importe, dia }
   sessionCounter++;
   // If data.default === true, we use the existing inputs (they already exist in DOM)
   if (data && data.default) {
-    // mark default as 'tracked' by returning an object mapping to existing IDs
     const el = document.querySelector('.session-line[data-default="true"]');
     if (el) {
       el.dataset._tracked = "true";
@@ -151,7 +159,6 @@ function createSessionLine(data = {}, focus = false) {
     return el;
   }
 
-  // Build a new line (no duplicate IDs)
   const div = document.createElement("div");
   div.className = "session-line";
   div.dataset._id = `session-${sessionCounter}`;
@@ -181,12 +188,10 @@ function createSessionLine(data = {}, focus = false) {
     </div>
     <button type="button" class="remove-session" title="Eliminar sesión">✖</button>
   `;
-  // set provided values if any
   if (data.cantidad) div.querySelector('.session-cantidad').value = data.cantidad;
   if (data.importe) div.querySelector('.session-importe').value = data.importe;
   if (data.dia) div.querySelector('.session-dia').value = data.dia;
 
-  // listeners to recalc and to prompt when filled
   const cantidadEl = div.querySelector('.session-cantidad');
   const importeEl = div.querySelector('.session-importe');
   const diaEl = div.querySelector('.session-dia');
@@ -198,7 +203,6 @@ function createSessionLine(data = {}, focus = false) {
     });
   });
 
-  // remove behavior
   div.querySelector('.remove-session').addEventListener('click', () => {
     div.remove();
     recalcularTotales();
@@ -216,7 +220,6 @@ function createSessionLine(data = {}, focus = false) {
   return div;
 }
 
-// returns array of session objects derived from DOM (both default line and extra ones)
 function getAllSessionLines() {
   const arr = [];
 
@@ -231,7 +234,7 @@ function getAllSessionLines() {
 
   // other dynamically added lines
   (document.querySelectorAll('#sessionLines .session-line') || []).forEach(el => {
-    if (el.dataset.default === "true") return; // skip default
+    if (el.dataset.default === "true") return;
     const cantidad = Number(el.querySelector('.session-cantidad')?.value) || 0;
     const importe = Number(el.querySelector('.session-importe')?.value) || 0;
     const dia = el.querySelector('.session-dia')?.value || '';
@@ -241,15 +244,12 @@ function getAllSessionLines() {
   return arr;
 }
 
-// helper: if this line is the last one and becomes filled, prompt to add another
 async function checkAndPromptForNewLine(lineEl) {
-  // only prompt if this is the last line in the container
   const lines = Array.from(document.querySelectorAll('#sessionLines .session-line'));
   if (!lines.length) return;
   const last = lines[lines.length - 1];
   if (last !== lineEl) return;
 
-  // check if filled: importe > 0 and dia not empty
   let importe = 0;
   let dia = '';
   if (lineEl.dataset.default === "true") {
@@ -260,11 +260,9 @@ async function checkAndPromptForNewLine(lineEl) {
     dia = lineEl.querySelector('.session-dia')?.value || '';
   }
 
-  // If already prompted for this line, don't reprompt
   if (lineEl.dataset._prompted === "true") return;
 
   if (importe > 0 && dia) {
-    // mark as prompted to avoid duplicate prompts
     lineEl.dataset._prompted = "true";
     const quiere = await promptAddSession("¿Añadir otra sesión?");
     if (quiere) {
@@ -275,7 +273,6 @@ async function checkAndPromptForNewLine(lineEl) {
 
 /* --- CÁLCULOS --- */
 function recalcularTotales() {
-  // Sum over all session lines
   const sessions = getAllSessionLines();
   let base = 0;
   sessions.forEach(s => {
@@ -283,7 +280,6 @@ function recalcularTotales() {
     base += lineBase;
   });
 
-  // Añadir desplazamiento y alojamiento (aplican a toda factura)
   const despIncluido = document.getElementById("desplazamientoIncluido").checked;
   const alojaIncluido = document.getElementById("alojamientoIncluido").checked;
 
@@ -427,8 +423,9 @@ async function eliminarCuenta() {
 
 /* --- NÚMERO DE FACTURA --- */
 async function asignarNumeroFactura() {
+  // Busca la última factura; si no existe ninguna, por petición tuya iniciamos en 6-<año>
   const snap = await db.collection("facturas").orderBy("numero", "desc").limit(1).get();
-  let siguiente = 1;
+  let siguiente = 6; // por defecto cuando no hay facturas previas (tal y como pediste)
   if (!snap.empty) {
     const ultimo = snap.docs[0].data().numero || "0";
     const num = parseInt(ultimo.toString().split("-")[0]);
@@ -450,7 +447,6 @@ async function guardarOActualizarHistorial() {
     return;
   }
 
-  // gather sessions array
   const sessions = getAllSessionLines().map(s => ({
     cantidad: s.cantidad,
     importe: s.importe,
@@ -472,7 +468,6 @@ async function guardarOActualizarHistorial() {
     tipoDoc: obtenerTexto("clienteTipoDoc"),
     doc: obtenerTexto("clienteDoc"),
     descripcion: obtenerTexto("descripcionSesion"),
-    // antiguas propiedades (compatibilidad)
     cantidad: obtenerNumero("cantidad"),
     importe: obtenerNumero("importe"),
     diaSesion: obtenerTexto("diaSesion"),
@@ -485,7 +480,7 @@ async function guardarOActualizarHistorial() {
     costoAlojamiento: obtenerNumero("costoAlojamiento"),
     cuenta: obtenerTexto("cuentaActual"),
     observaciones: obtenerTexto("observaciones"),
-    sessions, // NUEVO: array con todas las sesiones
+    sessions,
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   };
 
@@ -560,7 +555,7 @@ function cargarFactura(id, d) {
   if (id) bloquearNumeroFactura(); else desbloquearNumeroFactura();
 
   setValor("numeroFactura", d.numero);
-  setValor("fechaFactura", d.fecha);
+  setValor("fechaFactura", d.fecha || new Date().toISOString().slice(0,10));
   setValor("clienteNombre", d.cliente);
   setValor("clienteEmail", d.email);
   setValor("clienteDireccion", d.direccion);
@@ -579,7 +574,6 @@ function cargarFactura(id, d) {
   setValor("cuentaActual", d.cuenta || "");
   setValor("observaciones", d.observaciones || "");
 
-  // Clear existing lines and recreate
   if (sessionContainer) sessionContainer.innerHTML = '';
   // recreate default line (use original inputs)
   const defaultWrapper = document.createElement('div');
@@ -609,9 +603,8 @@ function cargarFactura(id, d) {
       </label>
     </div>
   `;
-  // append default wrapper and set values
   sessionContainer.appendChild(defaultWrapper);
-  // set default values from doc (if sessions exist, load first session into default)
+
   if (d.sessions && Array.isArray(d.sessions) && d.sessions.length) {
     const first = d.sessions[0];
     setTimeout(() => {
@@ -619,12 +612,10 @@ function cargarFactura(id, d) {
       setValor('importe', first.importe || '');
       setValor('diaSesion', first.dia || '');
     }, 30);
-    // add the rest sessions
     for (let i = 1; i < d.sessions.length; i++) {
       createSessionLine({ cantidad: d.sessions[i].cantidad, importe: d.sessions[i].importe, dia: d.sessions[i].dia });
     }
   } else {
-    // legacy fields (single session)
     setTimeout(() => {
       setValor('cantidad', d.cantidad || 1);
       setValor('importe', d.importe || '');
@@ -632,13 +623,11 @@ function cargarFactura(id, d) {
     }, 30);
   }
 
-  // set IVA selects
   setValor("ivaRetenido", d.ivaRetenido || 0);
   setValor("ivaAplicado", d.ivaAplicado || 10);
   recalcularTotales();
   showToast(id ? "Factura cargada 👁️" : "Factura duplicada 📋");
 
-  // Desplazamiento suave al inicio de la sección cliente
   const seccion = document.getElementById("seccionCliente");
   if (seccion) {
     seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -652,7 +641,6 @@ function cargarFactura(id, d) {
 function prepararImpresion() {
   const logoSrc = document.querySelector(".logo-kevin")?.src || "logo-kevin.png";
 
-  // Build sessions rows for print
   const sessions = getAllSessionLines();
   let sessionsHtml = '';
   sessions.forEach(s => {
@@ -669,6 +657,8 @@ function prepararImpresion() {
       </tr>
     `;
   });
+
+  const fechaParaImprimir = formatDateForPrint(obtenerTexto("fechaFactura"));
 
   const contenido = `
     <div class="print-header">
@@ -692,7 +682,11 @@ function prepararImpresion() {
       </div>
       <div class="print-grid-2">
         <div><div class="print-label">C.P.</div><div class="print-value">${obtenerTexto("emisorCP")}</div></div>
-        <div><div class="print-label">Nº FACTURA</div><div class="print-value">${obtenerTexto("numeroFactura")}</div></div>
+        <div><div class="print-label">FECHA</div><div class="print-value">${fechaParaImprimir}</div></div>
+      </div>
+      <div style="margin-top:6px;">
+        <div class="print-label">Nº FACTURA</div>
+        <div class="print-value" style="font-weight:800; font-size:13px; letter-spacing:1px;">${obtenerTexto("numeroFactura")}</div>
       </div>
     </div>
 
@@ -885,13 +879,32 @@ function prepararImpresion() {
 
 /* --- INICIALIZACIÓN --- */
 window.addEventListener("DOMContentLoaded", async () => {
+  // referencias que requieren DOM
+  sessionContainer = document.getElementById("sessionLines");
+
   document.getElementById("fechaFactura").value = new Date().toISOString().slice(0, 10);
   escucharClientes();
   escucharCuentas();
   await asignarNumeroFactura();
 
+  // botón editar número: toggle readOnly
+  const btnEditar = document.getElementById("btnEditarNumero");
+  if (btnEditar) {
+    btnEditar.addEventListener('click', () => {
+      const num = document.getElementById("numeroFactura");
+      if (!num) return;
+      if (num.readOnly) {
+        desbloquearNumeroFactura();
+        showToast("Ahora puedes editar el número manualmente", "blue", 1800);
+        num.focus();
+      } else {
+        bloquearNumeroFactura();
+        showToast("Número bloqueado", "blue", 1200);
+      }
+    });
+  }
+
   // Initialize session container and default line
-  // Ensure sessionContainer is the element we expect
   if (!sessionContainer) return;
 
   // bind manual add session button
@@ -899,10 +912,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     createSessionLine({}, true);
   });
 
-  // make default line "tracked" and add listeners to its inputs
+  // attach events to default line inputs
   const defaultLine = document.querySelector('.session-line[data-default="true"]');
   if (defaultLine) {
-    // attach events to existing IDs
     ['cantidad','importe','diaSesion'].forEach(id => {
       const el = document.getElementById(id);
       if (el) {
@@ -918,9 +930,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("btnNuevaFacturaFixed").onclick = async () => {
     setFacturaEditandoId(null);
     desbloquearNumeroFactura();
-    // Clear all card inputs except emisor fields
     document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor'])").forEach(i => i.value = "");
-    // reset selects
     document.getElementById("cantidad").selectedIndex = 0;
     document.getElementById("ivaRetenido").selectedIndex = 0;
     document.getElementById("ivaAplicado").selectedIndex = 2;
@@ -930,7 +940,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     // Reset session lines to single default
     if (sessionContainer) {
       sessionContainer.innerHTML = '';
-      // recreate default original inputs
       const defaultWrapper = document.createElement('div');
       defaultWrapper.className = 'session-line';
       defaultWrapper.dataset.default = "true";
@@ -959,7 +968,6 @@ window.addEventListener("DOMContentLoaded", async () => {
         </div>
       `;
       sessionContainer.appendChild(defaultWrapper);
-      // reattach listeners
       ['cantidad','importe','diaSesion'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', () => {
@@ -974,11 +982,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     showToast("Nueva factura lista 🆕");
 
-    // Desplazamiento suave a la sección de cliente
     const seccion = document.getElementById("seccionCliente");
     if (seccion) {
       seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      // Esperamos un poco a que termine el scroll para poner el foco
       setTimeout(() => document.getElementById("clienteNombre").focus(), 600);
     }
   };
