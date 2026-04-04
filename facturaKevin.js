@@ -29,6 +29,10 @@ function setValor(id, valor) {
   if (el.tagName === "SELECT" && el.value !== String(valor)) {
     el.selectedIndex = 0;
   }
+  // Forzar actualización visual para textarea
+  if (el.tagName === "TEXTAREA") {
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
 }
 function setChecked(id, valor) {
   const el = document.getElementById(id);
@@ -426,7 +430,7 @@ async function guardarOActualizarHistorial() {
     km: obtenerNumero("kmDesplazamiento"), precioPorKm: obtenerNumero("precioPorKm"),
     alojamiento: document.getElementById("alojamientoIncluido")?.checked,
     costoAlojamiento: obtenerNumero("costoAlojamiento"), cuenta: obtenerTexto("cuentaActual"),
-    observaciones: obtenerTexto("observaciones"), sessions,
+    observaciones: obtenerTexto("observaciones"), pagado: false, sessions,
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   };
 
@@ -435,6 +439,14 @@ async function guardarOActualizarHistorial() {
     if (editId) { await db.collection("facturas").doc(editId).set(datos); showToast("Factura actualizada ✅"); }
     else { await db.collection("facturas").add(datos); showToast("Factura guardada ✅"); await asignarNumeroFactura(); }
   } catch (e) { showToast("Error al guardar factura", "red"); }
+}
+async function togglePago(id, currentPagado) {
+  try {
+    await db.collection("facturas").doc(id).update({ pagado: !currentPagado });
+    showToast(`Factura ${!currentPagado ? 'marcada como pagada' : 'marcada como pendiente'} ✅`);
+  } catch (e) {
+    showToast("Error al actualizar estado de pago", "red");
+  }
 }
 async function mostrarHistorial() {
   const modal = document.getElementById("modalHistorial");
@@ -450,7 +462,10 @@ async function mostrarHistorial() {
     const item = document.createElement("div");
     item.className = "historial-item";
     item.innerHTML = `
-      <div class="historial-info"><strong>Factura ${d.numero} — ${d.cliente}</strong><span class="historial-total">${d.total}</span></div>
+      <div class="historial-info">
+        <div class="estado-pago" style="background-color: ${d.pagado ? 'green' : 'red'}; width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 10px; cursor: pointer;" title="${d.pagado ? 'Pagada' : 'Pendiente'}"></div>
+        <strong>Factura ${d.numero} — ${d.cliente}</strong><span class="historial-total">${d.total}</span>
+      </div>
       <div class="historial-btns">
         <button class="btn-cargar-factura" title="Cargar">👁️</button>
         <button class="btn-duplicar-factura" title="Duplicar">📋</button>
@@ -464,6 +479,7 @@ async function mostrarHistorial() {
         mostrarHistorial();
       }
     };
+    item.querySelector(".estado-pago").onclick = () => { togglePago(doc.id, d.pagado); mostrarHistorial(); };
     lista.appendChild(item);
   });
 }
@@ -737,8 +753,7 @@ const emisorCampos = [
         <div class="print-section-title">DATOS DE PAGO</div>
         <div class="print-label">IBAN</div>
         <div class="print-value" style="font-weight:800;color:#000000;">${obtenerTexto("cuentaActual")}</div>
-        <div style="margin-top:8px;" class="print-label">OBSERVACIONES</div>
-        <div class="print-value">${observacionesFinal}</div>
+        ${observacionesFinal.trim() ? `<div style="margin-top:8px;" class="print-label">OBSERVACIONES</div><div class="print-value">${observacionesFinal}</div>` : ''}
       </div>
 
       <div class="print-footer">¡GRACIAS POR TU CONFIANZA!</div>
