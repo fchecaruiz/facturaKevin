@@ -1,4 +1,5 @@
 // facturaKevin.js - Versión completa (mejorada: extracción robusta de CP y Provincia)
+// --- MODIFICADO PARA FACTURAS PAGADAS ---
 const firebaseConfig = {
   apiKey: "AIzaSyDbDypH0jS5Oo-0FZgzh-nySHu1u2-oCwg",
   authDomain: "facturakevin-34ff5.firebaseapp.com",
@@ -417,6 +418,7 @@ async function guardarOActualizarHistorial() {
   if (!numero || !cliente) { showToast("Completa nº factura y cliente", "red"); return; }
 
   const sessions = getAllSessionLines().map(s => ({ cantidad: s.cantidad, importe: s.importe, dia: s.dia, sala: s.sala }));
+  // --- MODIFICADO: Guardar el estado de 'pagado' ---
   const datos = {
     numero, cliente, total: document.getElementById("total")?.textContent || '',
     fecha: obtenerTexto("fechaFactura"), nif: obtenerTexto("emisorNif"),
@@ -430,7 +432,7 @@ async function guardarOActualizarHistorial() {
     km: obtenerNumero("kmDesplazamiento"), precioPorKm: obtenerNumero("precioPorKm"),
     alojamiento: document.getElementById("alojamientoIncluido")?.checked,
     costoAlojamiento: obtenerNumero("costoAlojamiento"), cuenta: obtenerTexto("cuentaActual"),
-    observaciones: obtenerTexto("observaciones"), pagado: false, sessions,
+    observaciones: obtenerTexto("observaciones"), pagado: document.getElementById("chkFacturaPagada")?.checked || false, sessions,
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   };
 
@@ -440,10 +442,12 @@ async function guardarOActualizarHistorial() {
     else { await db.collection("facturas").add(datos); showToast("Factura guardada ✅"); await asignarNumeroFactura(); }
   } catch (e) { showToast("Error al guardar factura", "red"); }
 }
+// --- MODIFICADO: Función para alternar estado de pago ---
 async function togglePago(id, currentPagado) {
   try {
     await db.collection("facturas").doc(id).update({ pagado: !currentPagado });
     showToast(`Factura ${!currentPagado ? 'marcada como pagada' : 'marcada como pendiente'} ✅`);
+    mostrarHistorial(); // Refrescar la lista
   } catch (e) {
     showToast("Error al actualizar estado de pago", "red");
   }
@@ -460,10 +464,10 @@ async function mostrarHistorial() {
   snap.forEach(doc => {
     const d = doc.data();
     const item = document.createElement("div");
-    item.className = "historial-item";
+    // --- MODIFICADO: Clase condicional para el estilo ---
+    item.className = `historial-item ${d.pagado ? 'pagada' : ''}`;
     item.innerHTML = `
       <div class="historial-info">
-        <div class="estado-pago" style="background-color: ${d.pagado ? 'green' : 'red'}; width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 10px; cursor: pointer;" title="${d.pagado ? 'Pagada' : 'Pendiente'}"></div>
         <strong>Factura ${d.numero} — ${d.cliente}</strong><span class="historial-total">${d.total}</span>
       </div>
       <div class="historial-btns">
@@ -479,7 +483,6 @@ async function mostrarHistorial() {
         mostrarHistorial();
       }
     };
-    item.querySelector(".estado-pago").onclick = () => { togglePago(doc.id, d.pagado); mostrarHistorial(); };
     lista.appendChild(item);
   });
 }
@@ -529,6 +532,7 @@ function attachListenersToDefaultRow(defaultWrapper) {
 }
 
 /* ----------------- Cargar / Crear Factura ----------------- */
+// --- MODIFICADO: Función para cargar factura ---
 function cargarFactura(id, d) {
   setFacturaEditandoId(id);
   sessionCounter = 0;
@@ -550,6 +554,8 @@ function cargarFactura(id, d) {
   setChecked("alojamientoIncluido", d.alojamiento || false);
   setValor("costoAlojamiento", d.costoAlojamiento || "");
   setValor("cuentaActual", d.cuenta || ""); setValor("observaciones", d.observaciones || "");
+  // --- MODIFICADO: Cargar el estado de pago ---
+  setChecked("chkFacturaPagada", d.pagado || false);
 
   if (sessionContainer) sessionContainer.innerHTML = '';
 
@@ -605,10 +611,13 @@ function cargarFactura(id, d) {
 }
 
 /* ----------------- Preparar impresión (usa extracción robusta) ----------------- */
+// --- MODIFICADO: Función para preparar impresión ---
 function prepararImpresion() {
   try {
     const esReserva = document.getElementById("reserva50")?.checked;
-    const titulo = "FACTURA";
+    // --- MODIFICADO: Determinar título basado en estado de pago ---
+    const esPagada = document.getElementById("chkFacturaPagada")?.checked;
+    const titulo = esPagada ? "✅ FACTURA PAGADA" : "FACTURA";
 
     const sessions = getAllSessionLines();
     let sessionsHtml = '';
@@ -647,6 +656,7 @@ function prepararImpresion() {
     })();
 
     // Cabecera simplificada
+    // --- MODIFICADO: Cabecera para incluir estado de pago ---
     const headerHtml = `
       <div class="print-header">
         <div style="display:flex;align-items:center;gap:14px;">
