@@ -12,6 +12,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 window._facturaEditandoId = null;
+window._clienteSeleccionadoSnapshot = null;
 
 /* ----------------- Utilidades ----------------- */
 function obtenerTexto(id) {
@@ -50,6 +51,26 @@ function formatDateForPrint(d) {
   const month = dt.toLocaleDateString('es-ES', { month: 'long' });
   const year = dt.getFullYear();
   return `${day}-${month}-${year}`;
+}
+function normalizarDocumento(tipoDoc, doc) {
+  return `${String(tipoDoc || '').trim().toUpperCase()}::${String(doc || '').trim().toUpperCase()}`;
+}
+function actualizarClienteSeleccionado(id, datos = null) {
+  window._clienteSeleccionadoSnapshot = id ? { id, ...(datos || {}) } : null;
+}
+async function buscarClientePorDocumento(tipoDoc, doc) {
+  const docNormalizado = String(doc || '').trim();
+  if (!docNormalizado) return null;
+  const snapshot = await db.collection("clientes").where("doc", "==", docNormalizado).get();
+  let encontrado = null;
+  snapshot.forEach((clienteDoc) => {
+    if (encontrado) return;
+    const datos = clienteDoc.data() || {};
+    if (normalizarDocumento(datos.tipoDoc, datos.doc) === normalizarDocumento(tipoDoc, docNormalizado)) {
+      encontrado = { id: clienteDoc.id, datos };
+    }
+  });
+  return encontrado;
 }
 function showToast(message, type = "blue", duration = 2200) {
   const toast = document.getElementById("toast");
@@ -312,7 +333,7 @@ function escucharClientes() {
   db.collection("clientes").orderBy("nombre").onSnapshot(snapshot => {
     const sel = document.getElementById("clientesGuardados");
     if (!sel) return;
-    const valorActual = sel.value;
+    const valorActual = sel.dataset.pendingValue || sel.value;
     sel.innerHTML = '<option value="">Seleccionar cliente...</option>';
     snapshot.forEach(doc => {
       const opt = document.createElement("option");
@@ -320,14 +341,19 @@ function escucharClientes() {
       sel.appendChild(opt);
     });
     if (valorActual) sel.value = valorActual;
+    delete sel.dataset.pendingValue;
   });
 }
 function rellenarCliente() {
   const id = document.getElementById("clientesGuardados").value;
-  if (!id) return;
+  if (!id) {
+    actualizarClienteSeleccionado(null);
+    return;
+  }
   db.collection("clientes").doc(id).get().then(doc => {
     if (!doc.exists) return;
     const d = doc.data();
+    actualizarClienteSeleccionado(doc.id, d);
     setValor("clienteNombre", d.nombre); setValor("clienteEmail", d.email);
     setValor("clienteDireccion", d.direccion); setValor("clienteCP", d.cp || '');
     setValor("clienteLocalidad", d.localidad); setValor("clienteProvincia", d.provincia);
@@ -347,8 +373,29 @@ async function guardarCliente() {
   };
   const sel = document.getElementById("clientesGuardados");
   try {
-    if (sel && sel.value) { await db.collection("clientes").doc(sel.value).set(datos); showToast("Cliente actualizado ✅"); }
-    else { const ref = await db.collection("clientes").add(datos); if (sel) sel.value = ref.id; showToast("Cliente guardado ✅"); }
+    const clienteSeleccionadoId = sel?.value?.trim() || "";
+    const clienteSeleccionado = window._clienteSeleccionadoSnapshot;
+    const documentoOriginal = normalizarDocumento(clienteSeleccionado?.tipoDoc, clienteSeleccionado?.doc);
+    const documentoActual = normalizarDocumento(datos.tipoDoc, datos.doc);
+    const documentoHaCambiado = !!datos.doc.trim() && clienteSeleccionadoId && clienteSeleccionado?.id === clienteSeleccionadoId && documentoOriginal !== documentoActual;
+
+    let clienteDestinoId = clienteSeleccionadoId;
+    if (documentoHaCambiado) {
+      const clienteExistente = await buscarClientePorDocumento(datos.tipoDoc, datos.doc);
+      clienteDestinoId = clienteExistente?.id || "";
+    }
+
+    if (clienteDestinoId) {
+      await db.collection("clientes").doc(clienteDestinoId).set(datos);
+      if (sel) sel.dataset.pendingValue = clienteDestinoId;
+      actualizarClienteSeleccionado(clienteDestinoId, datos);
+      showToast("Cliente actualizado ✅");
+    } else {
+      const ref = await db.collection("clientes").add(datos);
+      if (sel) sel.dataset.pendingValue = ref.id;
+      actualizarClienteSeleccionado(ref.id, datos);
+      showToast("Cliente guardado ✅");
+    }
   } catch (e) { showToast("Error al guardar cliente", "red"); }
 }
 async function eliminarCliente() {
@@ -357,6 +404,7 @@ async function eliminarCliente() {
   if (!await confirmarToast("¿Eliminar este cliente?")) return;
   await db.collection("clientes").doc(sel.value).delete();
   sel.value = "";
+  actualizarClienteSeleccionado(null);
   ["clienteNombre", "clienteEmail", "clienteDireccion", "clienteCP", "clienteLocalidad", "clienteProvincia", "clienteTelefono", "clienteDoc"].forEach(i => setValor(i, ""));
   showToast("Cliente eliminado 🗑️", "red");
 }
@@ -756,7 +804,7 @@ const emisorCampos = [
         ${observacionesFinal.trim() ? `<div style="margin-top:8px;" class="print-label">OBSERVACIONES</div><div class="print-value">${observacionesFinal}</div>` : ''}
       </div>
 
-      <div class="print-footer">¡GRACIAS POR TU CONFIANZA!</div>
+      <div class="print-footer">¡KEVIN CHECA OS AGRADECE LA CONFIANZA!</div>
     `;
 
     const html = `
@@ -882,6 +930,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (nuevaBtn) {
     nuevaBtn.onclick = async () => {
       setFacturaEditandoId(null);
+      actualizarClienteSeleccionado(null);
       const num = document.getElementById("numeroFactura");
       if (num) { num.readOnly = false; num.style.opacity = "1"; num.style.cursor = "text"; }
       document.querySelectorAll(".card input:not([id^='emisor']), .card textarea:not([id^='emisor']), .card select:not([id^='emisor'])").forEach(i => {
