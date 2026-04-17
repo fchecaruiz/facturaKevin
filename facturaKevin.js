@@ -9,10 +9,12 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
 const db = firebase.firestore();
 
 window._facturaEditandoId = null;
 window._clienteSeleccionadoSnapshot = null;
+let appInitialized = false;
 
 /* ----------------- Utilidades ----------------- */
 function obtenerTexto(id) {
@@ -107,6 +109,79 @@ function promptAddSession(mensaje = "¿Añadir otra sesión?") {
     overlay.classList.add("show");
     btnSi.onclick = () => { overlay.classList.remove("show"); resolve(true); };
     btnNo.onclick = () => { overlay.classList.remove("show"); resolve(false); };
+  });
+}
+
+function actualizarVistaAutenticacion(user) {
+  document.body.classList.toggle("auth-ready", !!user);
+  document.body.classList.toggle("auth-locked", !user);
+
+  const emailEl = document.getElementById("loginEmail");
+  const passEl = document.getElementById("loginPassword");
+  if (!user && emailEl && !emailEl.value) emailEl.focus();
+  if (user && passEl) passEl.value = "";
+}
+
+function traducirErrorAuth(code) {
+  switch (code) {
+    case "auth/invalid-email":
+      return "El email no es valido";
+    case "auth/user-not-found":
+      return "Ese usuario no existe";
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+      return "Email o contraseña incorrectos";
+    case "auth/too-many-requests":
+      return "Demasiados intentos. Espera un momento";
+    case "auth/network-request-failed":
+      return "Fallo de red al conectar con Firebase";
+    case "auth/unauthorized-domain":
+      return "Dominio no autorizado en Firebase Authentication";
+    case "auth/operation-not-allowed":
+      return "El acceso por email y contraseña no esta habilitado";
+    default:
+      return `No se pudo iniciar sesion (${code || "sin codigo"})`;
+  }
+}
+
+async function iniciarSesion(event) {
+  event.preventDefault();
+  const email = obtenerTexto("loginEmail").trim();
+  const password = obtenerTexto("loginPassword");
+  if (!email || !password) {
+    showToast("Introduce email y contraseña", "red");
+    return;
+  }
+
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    showToast("Sesión iniciada ✅");
+  } catch (error) {
+    console.error("Error de autenticacion", error);
+    showToast(traducirErrorAuth(error?.code), "red", 4000);
+  }
+}
+
+async function cerrarSesion() {
+  try {
+    await auth.signOut();
+    document.getElementById("modalHistorial")?.classList.remove("show");
+    showToast("Sesión cerrada");
+  } catch (error) {
+    showToast("No se pudo cerrar sesión", "red");
+  }
+}
+
+function bindAuthUI() {
+  const loginForm = document.getElementById("loginForm");
+  if (loginForm) loginForm.addEventListener("submit", iniciarSesion);
+
+  const btnLogout = document.getElementById("btnLogout");
+  if (btnLogout) btnLogout.onclick = cerrarSesion;
+
+  auth.onAuthStateChanged(async (user) => {
+    actualizarVistaAutenticacion(user);
+    if (user) await inicializarApp();
   });
 }
 
@@ -888,7 +963,10 @@ const emisorCampos = [
 }
 
 /* ----------------- Inicialización y Bindings ----------------- */
-window.addEventListener("DOMContentLoaded", async () => {
+async function inicializarApp() {
+  if (appInitialized) return;
+  appInitialized = true;
+
   sessionContainer = document.getElementById("sessionLines");
   if (document.getElementById("fechaFactura")) document.getElementById("fechaFactura").value = new Date().toISOString().slice(0, 10);
 
@@ -1003,4 +1081,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   recalcularTotales();
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  bindAuthUI();
 });

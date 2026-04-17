@@ -6,12 +6,30 @@
   <title>Generador de Facturas - Kevin Checa</title>
   <link rel="stylesheet" href="facturaKevin.css" />
 </head>
-<body tabindex="-1">
+<body tabindex="-1" class="auth-locked">
+
+  <section id="authPanel" class="auth-panel">
+    <div class="auth-card">
+      <img src="logo-kevin.png" alt="Logo Kevin" class="logo-kevin auth-logo" />
+      <h1>Acceso FacturaKevin</h1>
+      <p>Inicia sesión con el usuario que has creado en Firebase Authentication.</p>
+      <form id="loginForm" class="auth-form">
+        <label>Email
+          <input type="email" id="loginEmail" autocomplete="username" required />
+        </label>
+        <label>Contraseña
+          <input type="password" id="loginPassword" autocomplete="current-password" required />
+        </label>
+        <button id="btnLogin" type="submit" class="btn-blue">Entrar</button>
+      </form>
+    </div>
+  </section>
 
   <div class="app-container">
     <header class="header-main">
       <img src="logo-kevin.png" alt="Logo Kevin" class="logo-kevin" />
       <h1>KEVIN CHECA</h1>
+      <button id="btnLogout" type="button" class="btn-slate logout-btn">Cerrar sesión</button>
     </header>
 
     <!-- EMISOR -->
@@ -250,6 +268,7 @@
 
   <!-- FIREBASE -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="facturaKevin.js"></script>
 </body>
