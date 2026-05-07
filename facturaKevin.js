@@ -779,7 +779,7 @@ function prepararImpresion() {
         <div style="text-align:right;">
           <div style="font-weight:700;color:#000000;">${titulo}</div>
           <div style="font-size:12px;color:#334155;margin-top:6px;">Factura: ${obtenerTexto("numeroFactura") || ''}</div>
-          <div style="font-size:12px;color:#334155;">Fecha: ${obtenerTexto("fechaFactura") || ''}</div>
+          <div style="font-size:12px;color:#334155;">Fecha: ${formatDateForPrint(document.getElementById("fechaFactura")?.value) || obtenerTexto("fechaFactura") || 'Sin fecha'}</div>
         </div>
       </div>
     `;
